@@ -1,7 +1,9 @@
 
+HPXDIR=../hpx
 
-LIBDIR=../libhpx/.libs/
+LIBDIR=$(HPXDIR)/libhpx/.libs
+INCDIR=$(HPXDIR)/include
 
 all:
-	c2hs --cppopts='-I./hpx/include/' Hpx.chs
-	ghc Test.hs Hpx.hs $(LIBDIR)/libhpx.a -lxml2 -lnuma -lpthread
+	c2hs --cppopts='-I$(INCDIR)' Hpx.chs
+	ghc Test.hs Hpx.hs $(LIBDIR)/libhpx.a -lxml2 -lnuma -lpthread -lpciaccess
