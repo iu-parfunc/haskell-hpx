@@ -1,12 +1,17 @@
 
 
 
-module Foreign.HPX where
+module Foreign.HPX
+       
+       where
 
 import Foreign
 import Foreign.C
 import Foreign.C.Types
 import Foreign.Ptr
+import Foreign.C2HS
+
+import System.Environment
 
 #include "hpx/hpx.h"
 
@@ -22,28 +27,36 @@ import Foreign.Ptr
 --   , `Ptr (Ptr (Ptr CChar))' }
 --     -> `CInt'   #}
 
-foreign import ccall "wrapper"
--- wrap :: (CDouble -> CDouble) -> IO (FunPtr (CDouble -> CDouble))
-  wrap :: (Ptr () -> IO CInt) -> IO (FunPtr (Ptr () -> IO CInt))
 
-foo :: Ptr () -> IO CInt
-foo x = do
-  print x
-  return 0
-
-
-type Action 	= {#type hpx_action_t#}
-type Handler	= {#type hpx_action_handler_t#}
+type Action     = {#type hpx_action_t#}
+type Handler    = {#type hpx_action_handler_t#}
 
 -- hpxRegisterAction :: String -> Handler -> IO Action
 -- hpxRegisterAction s h = {# call hpx_register_action #} s h
 
-{# fun unsafe hpx_register_action
+{# fun unsafe hpx_register_action as ^
  { withCString* `String'
  , id           `Handler'
  } -> `CULong' id #}
 
-hpxInit :: [String] -> IO Int
-hpxInit s = fmap fromIntegral $
-            {# call hpx_init #} nullPtr nullPtr
-            
+
+init :: IO [String]
+init = initWith =<< getArgs
+
+initWith :: [String] -> IO [String]
+initWith argv =
+  withMany withCString argv $ \argv'  -> -- argv' :: [CString]
+  withArray argv'           $ \argv'' -> -- argv'' :: Ptr CString
+  with argv''               $ \argv''' -> do -- argv''' :: Ptr (Ptr CString)
+
+    (r, argc) <- hpxInit (length argv) argv'''
+	-- TODO throw exception on 'r'
+    x         <- peekArray argc =<< peek argv'''     -- :: [Ptr CString]
+    mapM peekCString x
+
+
+{# fun unsafe hpx_init as ^
+  { withIntConv* `Int'                   peekIntConv*
+  , id           `Ptr (Ptr (Ptr CChar))'
+  } -> `Int' cIntConv #}
+
