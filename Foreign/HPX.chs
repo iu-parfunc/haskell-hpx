@@ -1,9 +1,21 @@
+{-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE CPP                      #-}
 
+--------------------------------------------------------------------------------
+-- |
+-- Module    : Foreign.HPX
+-- Copyright : 
+-- License   : BSD
+--
+-- Haskell Bindings for HPX.
+--
+--------------------------------------------------------------------------------
 
-
-module Foreign.HPX
-       
-       where
+module Foreign.HPX (
+  Action(..),
+  Foreign.HPX.init, initWith,
+  registerAction
+) where
 
 import Foreign
 import Foreign.C
@@ -11,35 +23,25 @@ import Foreign.C.Types
 import Foreign.Ptr
 import Foreign.C2HS
 
-import System.Environment
-
+import System.Environment  (getArgs)
+import Control.Monad       (liftM)
 #include "hpx/hpx.h"
 
--- include "hpx/rpc.h"
+--------------------------------------------------------------------------------
+-- Data Types
+--------------------------------------------------------------------------------
 
--- int hpx_init(int *argc, char ***argv);
+newtype Action = Action { useAction :: {# type hpx_action_t #} }
+  deriving (Eq, Show)
 
--- foreign import hpx_init :: Ptr Int -> Ptr String -> IO Int
-
--- {# fun unsafe hpx_init
---   { `Ptr CInt'
--- --  , `Ptr (Ptr String)' 
---   , `Ptr (Ptr (Ptr CChar))' }
---     -> `CInt'   #}
+type Handler   = {#type hpx_action_handler_t#}
 
 
-type Action     = {#type hpx_action_t#}
-type Handler    = {#type hpx_action_handler_t#}
+--------------------------------------------------------------------------------
+-- Initialization
+--------------------------------------------------------------------------------
 
--- hpxRegisterAction :: String -> Handler -> IO Action
--- hpxRegisterAction s h = {# call hpx_register_action #} s h
-
-{# fun unsafe hpx_register_action as ^
- { withCString* `String'
- , id           `Handler'
- } -> `CULong' id #}
-
-
+{-# INLINEABLE init #-}
 init :: IO [String]
 init = initWith =<< getArgs
 
@@ -60,3 +62,25 @@ initWith argv =
   , id           `Ptr (Ptr (Ptr CChar))'
   } -> `Int' cIntConv #}
 
+
+--------------------------------------------------------------------------------
+-- Action Registration
+--------------------------------------------------------------------------------
+
+foreign import ccall "wrapper"
+  wrap :: (Ptr () -> IO CInt) -> IO (FunPtr (Ptr () -> IO CInt))
+
+{# fun unsafe hpx_register_action as ^
+ { alloca-      `Action' peekAction*
+ , withCString* `String'
+ , id           `Handler'
+ } -> `Int' cIntConv #}
+ where peekAction = liftM Action . peek
+
+{-# INLINEABLE registerAction#-}
+registerAction :: String -> (Ptr () -> IO CInt) -> IO Action
+registerAction s p = do
+  ptr <- wrap p
+  (r, act) <- hpxRegisterAction s ptr
+  -- TODO throw exception on 'r'
+  return act
