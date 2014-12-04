@@ -14,7 +14,8 @@
 module Foreign.HPX (
   Action(..),
   Foreign.HPX.init, initWith,
-  registerAction
+  registerAction,
+  run, shutdown
 ) where
 
 import Foreign
@@ -84,3 +85,22 @@ registerAction s p = do
   (r, act) <- hpxRegisterAction s ptr
   -- TODO throw exception on 'r'
   return act
+
+--------------------------------------------------------------------------------
+-- Runtime Calls
+--------------------------------------------------------------------------------
+
+{# fun hpx_run as ^
+ { withAction*  `Action'
+ , id           `Ptr ()'
+ , cIntConv     `Int'
+ } -> `Int' cIntConv #}
+ where withAction = with . useAction
+
+run :: Action -> Ptr () -> Int -> IO Int
+run = hpxRun
+
+{# fun hpx_shutdown as ^ { cIntConv `Int' } -> `()' #}
+
+shutdown :: Int -> IO ()
+shutdown = hpxShutdown
