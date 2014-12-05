@@ -6,8 +6,16 @@ import Foreign.C.Types
 import Foreign.Ptr
 import Foreign.HPX     as HPX
 
-foo :: Ptr () -> IO CInt
-foo x = do
+
+fib :: Ptr () -> IO CInt
+fib x = do
+  print x
+  HPX.shutdown 0
+  return 0
+
+
+fibMain :: Ptr () -> IO CInt
+fibMain x = do
   print x
   HPX.shutdown 0
   return 0
@@ -15,8 +23,13 @@ foo x = do
 main :: IO ()
 main = do
   putStrLn " [Test] Call hpx init..."
-  strs <- HPX.initWith ["Test.hs", "--hpx-loglevel=all", "foobar"]
-  act <- HPX.registerAction "__hpx_foo" foo
-  HPX.run act nullPtr 0
+  strs <- HPX.init
   putStrLn$  "Done with hpx init, returned "++ show (unlines strs)
 
+  putStrLn " [Test] Registering actions fib and fibMain..."
+  fib' <- HPX.registerAction "__hpx_fib" fib
+  fibMain' <- HPX.registerAction "__hpx_fibMain" fibMain
+
+  putStrLn " [Test] Running HPX..."
+  HPX.run fib' nullPtr 0
+  putStrLn " [Test] Exiting HPX..."

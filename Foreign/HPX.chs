@@ -24,8 +24,8 @@ import Foreign.C.Types
 import Foreign.Ptr
 import Foreign.C2HS
 
-import System.Environment  (getArgs)
-import Control.Monad       (liftM)
+import System.Environment  (getProgName, getArgs)
+import Control.Monad       (liftM, liftM2)
 #include "hpx/hpx.h"
 
 --------------------------------------------------------------------------------
@@ -44,7 +44,7 @@ type Handler   = {#type hpx_action_handler_t#}
 
 {-# INLINEABLE init #-}
 init :: IO [String]
-init = initWith =<< getArgs
+init = initWith =<< (liftM2 (:) getProgName $ getArgs)
 
 initWith :: [String] -> IO [String]
 initWith argv =
