@@ -20,6 +20,7 @@ fibMain x = do
   HPX.shutdown 0
   return 0
 
+
 main :: IO ()
 main = do
   putStrLn " [Test] Call hpx init..."
@@ -27,9 +28,10 @@ main = do
   putStrLn$  "Done with hpx init, returned "++ show (unlines strs)
 
   putStrLn " [Test] Registering actions fib and fibMain..."
-  fib' <- HPX.registerAction "__hpx_fib" fib
-  fibMain' <- HPX.registerAction "__hpx_fibMain" fibMain
+  HPX.registerAction "__hpx_fib" fib
+  HPX.registerAction "__hpx_fibMain" fibMain
+  HPX.registerAction "__hpx_fib2" fib
 
   putStrLn " [Test] Running HPX..."
-  HPX.run fib' nullPtr 0
+  HPX.run fibMain nullPtr 0
   putStrLn " [Test] Exiting HPX..."

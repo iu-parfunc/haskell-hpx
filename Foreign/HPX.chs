@@ -24,9 +24,21 @@ import Foreign.C.Types
 import Foreign.Ptr
 import Foreign.C2HS
 
-import System.Environment  (getProgName, getArgs)
-import Control.Monad       (liftM, liftM2)
+import System.Environment          (getProgName, getArgs)
+import Control.Monad               (liftM, liftM2)
+import Data.Map            as M
+import Data.IORef
+import System.IO.Unsafe            (unsafePerformIO)
+
 #include "hpx/hpx.h"
+
+--------------------------------------------------------------------------------
+-- Global Mutable Structures 
+--------------------------------------------------------------------------------
+
+{-# NOINLINE hpxActionTable #-}
+hpxActionTable :: IORef (M.Map (FunPtr a) Action)
+hpxActionTable = unsafePerformIO$ newIORef M.empty
 
 --------------------------------------------------------------------------------
 -- Data Types
@@ -71,6 +83,9 @@ initWith argv =
 foreign import ccall "wrapper"
   wrap :: (Ptr () -> IO CInt) -> IO (FunPtr (Ptr () -> IO CInt))
 
+foreign import ccall "dynamic" 
+  unwrap :: FunPtr (Ptr () -> IO CInt) -> (Ptr () -> IO CInt)
+
 {# fun unsafe hpx_register_action as ^
  { alloca-      `Action' peekAction*
  , withCString* `String'
@@ -79,12 +94,13 @@ foreign import ccall "wrapper"
  where peekAction = liftM Action . peek
 
 {-# INLINEABLE registerAction#-}
-registerAction :: String -> (Ptr () -> IO CInt) -> IO Action
+registerAction :: String -> (Ptr () -> IO CInt) -> IO ()
 registerAction s p = do
   ptr <- wrap p
   (r, act) <- hpxRegisterAction s ptr
   -- TODO throw exception on 'r'
-  return act
+  modifyIORef hpxActionTable (M.insert ptr act)
+  putStrLn$ "Registered action pointer: "++ show ptr ++ " with key: "++ show s
 
 --------------------------------------------------------------------------------
 -- Runtime Calls
@@ -97,8 +113,13 @@ registerAction s p = do
  } -> `Int' cIntConv #}
  where withAction = with . useAction
 
-run :: Action -> Ptr () -> Int -> IO Int
-run = hpxRun
+run :: (Ptr () -> IO CInt) -> Ptr () -> Int -> IO Int
+run p args size = do
+  tbl <- readIORef hpxActionTable
+  ptr <- wrap p
+  case M.lookup ptr tbl of
+     Nothing -> error$ "ERROR: Invalid action pointer: "++ show ptr
+     Just action -> hpxRun action args size
 
 {# fun hpx_shutdown as ^ { cIntConv `Int' } -> `()' #}
 
