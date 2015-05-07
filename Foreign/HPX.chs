@@ -110,16 +110,13 @@ registerAction s p = do
 -- Runtime Calls
 --------------------------------------------------------------------------------
 
--- hpx_run must have been renamed
+{# fun _hpx_run as ^
+ { withAction*  `Action'
+ , cIntConv     `Int'
+-- , id           `Ptr ()'
+ } -> `Int' cIntConv #}
+ where withAction = with . useAction
 
--- {# fun hpx_run as ^
---  { withAction*  `Action'
---  , id           `Ptr ()'
---  , cIntConv     `Int'
---  } -> `Int' cIntConv #}
---  where withAction = with . useAction
-
-hpxRun = undefined
 
 run :: (Ptr () -> IO CInt) -> Ptr () -> Int -> IO Int
 run p args size = do
@@ -127,7 +124,7 @@ run p args size = do
   ptr <- wrap p
   case M.lookup ptr tbl of
      Nothing -> error$ "ERROR: Invalid action pointer: "++ show ptr
-     Just action -> hpxRun action args size
+     Just action -> hpxRun action size -- args
 
 {# fun hpx_shutdown as ^ { cIntConv `Int' } -> `()' #}
 
