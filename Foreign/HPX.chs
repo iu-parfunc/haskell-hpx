@@ -4,19 +4,21 @@
 --------------------------------------------------------------------------------
 -- |
 -- Module    : Foreign.HPX
--- Copyright : 
+-- Copyright :
 -- License   : BSD
 --
 -- Haskell Bindings for HPX.
 --
 --------------------------------------------------------------------------------
 
-module Foreign.HPX (
+module Foreign.HPX {-
+(
   Action(..),
   Foreign.HPX.init, initWith,
   registerAction,
   run, shutdown
-) where
+)
+       -}  where
 
 import Foreign
 import Foreign.C
@@ -33,7 +35,7 @@ import System.IO.Unsafe            (unsafePerformIO)
 #include "hpx/hpx.h"
 
 --------------------------------------------------------------------------------
--- Global Mutable Structures 
+-- Global Mutable Structures
 --------------------------------------------------------------------------------
 
 {-# NOINLINE hpxActionTable #-}
@@ -48,7 +50,6 @@ newtype Action = Action { useAction :: {# type hpx_action_t #} }
   deriving (Eq, Show)
 
 type Handler   = {#type hpx_action_handler_t#}
-
 
 --------------------------------------------------------------------------------
 -- Initialization
@@ -65,7 +66,7 @@ initWith argv =
   with argv''               $ \argv''' -> do -- argv''' :: Ptr (Ptr CString)
 
     (r, argc) <- hpxInit (length argv) argv'''
-	-- TODO throw exception on 'r'
+        -- TODO throw exception on 'r'
     x         <- peekArray argc =<< peek argv'''     -- :: [Ptr CString]
     mapM peekCString x
 
@@ -75,7 +76,6 @@ initWith argv =
   , id           `Ptr (Ptr (Ptr CChar))'
   } -> `Int' cIntConv #}
 
-
 --------------------------------------------------------------------------------
 -- Action Registration
 --------------------------------------------------------------------------------
@@ -83,15 +83,19 @@ initWith argv =
 foreign import ccall "wrapper"
   wrap :: (Ptr () -> IO CInt) -> IO (FunPtr (Ptr () -> IO CInt))
 
-foreign import ccall "dynamic" 
+foreign import ccall "dynamic"
   unwrap :: FunPtr (Ptr () -> IO CInt) -> (Ptr () -> IO CInt)
 
-{# fun unsafe hpx_register_action as ^
- { alloca-      `Action' peekAction*
- , withCString* `String'
- , id           `Handler'
- } -> `Int' cIntConv #}
- where peekAction = liftM Action . peek
+--Different # of args:
+
+-- {# fun unsafe hpx_register_action as ^
+--  { alloca-      `Action' peekAction*
+--  , withCString* `String'
+--  , id           `Handler'
+--  } -> `Int' cIntConv #}
+--  where peekAction = liftM Action . peek
+
+hpxRegisterAction = undefined
 
 {-# INLINEABLE registerAction#-}
 registerAction :: String -> (Ptr () -> IO CInt) -> IO ()
@@ -106,12 +110,16 @@ registerAction s p = do
 -- Runtime Calls
 --------------------------------------------------------------------------------
 
-{# fun hpx_run as ^
- { withAction*  `Action'
- , id           `Ptr ()'
- , cIntConv     `Int'
- } -> `Int' cIntConv #}
- where withAction = with . useAction
+-- hpx_run must have been renamed
+
+-- {# fun hpx_run as ^
+--  { withAction*  `Action'
+--  , id           `Ptr ()'
+--  , cIntConv     `Int'
+--  } -> `Int' cIntConv #}
+--  where withAction = with . useAction
+
+hpxRun = undefined
 
 run :: (Ptr () -> IO CInt) -> Ptr () -> Int -> IO Int
 run p args size = do
