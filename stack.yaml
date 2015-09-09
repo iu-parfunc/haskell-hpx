@@ -1,5 +1,24 @@
 flags: {}
+
 packages:
-- '.'
+  - '.'
+
 extra-deps: []
+
 resolver: lts-3.4
+
+docker:
+  enable: true
+#  repo: "fpco/stack-build"
+
+  repo: "haskell-hpx:1.0"
+
+#  image: "5c624ec1d63f"
+  auto-pull: true
+
+#  persistent: false
+
+
+#    base: "fpco/stack-build"
+#    add:
+#      static: /data/static
