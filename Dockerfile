@@ -14,3 +14,18 @@ RUN wget http://hpx.crest.iu.edu/release/HPX_Release_v1.0.0.tar.gz && \
     make -j && \
     make install && \
     cd / && rm -rf /HPX_Release_v1.0.0/
+
+
+# First, build the dependencies and cache them in a separate layer.
+# Changing the source code under this directory should not trigger
+# a reexecution at this layer.
+COPY haskell-hpx.cabal stack.yaml haskell-hpx-src/
+RUN cd haskell-hpx-src/ && \
+    stack install --only-dependencies
+
+
+# Second, build the actual project:
+COPY . haskell-hpx-src/
+# Here we do the build directly INSIDE the container.
+RUN cd haskell-hpx-src/ && \
+    stack build
