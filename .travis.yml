@@ -24,7 +24,7 @@ install:
 
 script:
 #  - stack test --no-terminal +RTS -N1 -RTS
-  - stack build --extra-include-dirs="~/.local/include/" --extra-lib-dirs="~/.local/lib/" --no-terminal +RTS -N1 -RTS
+  - stack build --extra-include-dirs="$HOME/.local/include/" --extra-lib-dirs="$HOME/.local/lib/" --no-terminal +RTS -N1 -RTS
 
 git:
   submodules: false
