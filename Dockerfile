@@ -6,15 +6,8 @@ RUN apt-get update && apt-get install -y \
 
 # ADD http://hpx.crest.iu.edu/release/HPX_Release_v1.0.0.tar.gz ./
 
-RUN wget http://hpx.crest.iu.edu/release/HPX_Release_v1.0.0.tar.gz && \
-    tar xf HPX_Release_v1.0.0.tar.gz && \
-    rm HPX_Release_v1.0.0.tar.gz && \
-    cd HPX_Release_v1.0.0/hpx && \
-    ./configure --prefix=/usr && \
-    make -j && \
-    make install && \
-    cd / && rm -rf /HPX_Release_v1.0.0/
-
+COPY .grab_hpx_1.0.sh haskell-hpx-src/
+RUN cd haskell-hpx-src/ && ./.grab_hpx_1.0.sh /usr
 
 # First, build the dependencies and cache them in a separate layer.
 # Changing the source code under this directory should not trigger
