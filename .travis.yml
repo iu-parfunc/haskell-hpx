@@ -15,6 +15,7 @@ before_install:
 
  - if ! [ -f ~/.local/include/hpx/hpx.h ] ; then ./.grab_hpx_1.3.sh ~/.local/; fi
  - find ~/.local/
+ - export PKG_CONFIG_PATH=~/.local/lib/pkgconfig:$PKG_CONFIG_PATH
  - pkg-config --modversion hpx
  - export LD_LIBRARY_PATH=~/.local/lib:$LD_LIBRARY_PATH
  - export C_INCLUDE_PATH=~/.local/include:$C_INCLUDE_PATH
