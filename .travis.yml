@@ -13,7 +13,7 @@ before_install:
  - chmod a+x $HOME/.local/bin/stack
  - cat /proc/cpuinfo | grep name
 
- - ./.grab_hpx_1.3.sh $HOME/.local/
+ - if ! [ -f $HOME/.local/include/hpx/hpx.h ] ; then ./.grab_hpx_1.3.sh $HOME/.local/; fi
  - find $HOME/.local/
  - export PKG_CONFIG_PATH=$HOME/.local/lib/pkgconfig:$PKG_CONFIG_PATH
  - export LD_LIBRARY_PATH=$HOME/.local/lib:$LD_LIBRARY_PATH
@@ -24,8 +24,7 @@ install:
  - stack test --only-snapshot --no-terminal +RTS -N1 -RTS
 
 script:
-#  - stack test --no-terminal +RTS -N1 -RTS
-  - stack build --extra-include-dirs="$HOME/.local/include/" --extra-lib-dirs="$HOME/.local/lib/" --no-terminal +RTS -N1 -RTS
+  - stack test --extra-include-dirs="$HOME/.local/include/" --extra-lib-dirs="$HOME/.local/lib/" --no-terminal +RTS -N1 -RTS
 
 git:
   submodules: false
