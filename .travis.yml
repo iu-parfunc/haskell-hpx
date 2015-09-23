@@ -13,7 +13,7 @@ before_install:
  - chmod a+x ~/.local/bin/stack
  - cat /proc/cpuinfo | grep name
 
- - if ! [ -f ~/.local/include/hpx/hpx.h ] ; then ./.grab_hpx_1.3.sh ~/.local/; fi
+ - ./.grab_hpx_1.3.sh
  - find ~/.local/
  - export LD_LIBRARY_PATH=~/.local/lib:$LD_LIBRARY_PATH
  - export C_INCLUDE_PATH=~/.local/include:$C_INCLUDE_PATH
