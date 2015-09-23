@@ -122,10 +122,16 @@ initWith argv =
 --  where peekAction = fmap Action . peek
 
 {#enum hpx_action_type_t as ActionType
-  { HPX_DEFAULT   as HPXDefault
-  , HPX_TASK      as HPXTask
-  , HPX_INTERRUPT as HPXInterrupt
-  , HPX_FUNCTION  as HPXFunction
+  { HPX_DEFAULT   as Default
+  , HPX_TASK      as Task
+  , HPX_INTERRUPT as Interrupt
+  , HPX_FUNCTION  as Function
+  } deriving (Bounded, Eq, Ix, Ord, Read, Show) #}
+
+{#enum define HPXAttribute
+  { HPX_ATTR_NONE  as NoAttribute
+  , HPX_MARSHALLED as Marshalled
+  , HPX_PINNED     as Pinned
   } deriving (Bounded, Eq, Ix, Ord, Read, Show) #}
 
 -- -- TODO: Convert Int into Enum
@@ -178,7 +184,7 @@ initWith argv =
 
 {#fun unsafe variadic hpx_register_action[hpx_type_t, hpx_type_t] as ^
   {              `ActionType'
-  ,              `Int'
+  ,              `HPXAttribute'
   ,              `String'
   ,      alloca- `Action a' Action
   , withHandler* `ActionHandler'
@@ -195,7 +201,12 @@ initWith argv =
     withHandler = withFunWrapper newActionHandler
 
 -- TODO: Remove the need to pass an explicit String ID
-registerAction :: Binary a => ActionType -> Int -> String -> StaticPtr (a -> IO Int) -> IO (Action a)
+registerAction :: Binary a
+               => ActionType
+               -> HPXAttribute
+               -> String
+               -> StaticPtr (a -> IO Int)
+               -> IO (Action a)
 registerAction actionT attr key clbk = do
     -- TODO: Figure out what error codes can be produced here
     (_r, a) <- hpxRegisterAction actionT attr key c_callback
