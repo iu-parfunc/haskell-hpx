@@ -7,18 +7,17 @@ cache:
   - $HOME/.local/
 
 before_install:
- - mkdir -p ~/.local/bin
- - export PATH=~/.local/bin:$PATH
- - travis_retry curl -L https://github.com/commercialhaskell/stack/releases/download/v0.1.1.0/stack-0.1.1.0-x86_64-linux.gz | gunzip > ~/.local/bin/stack
- - chmod a+x ~/.local/bin/stack
+ - mkdir -p $HOME/.local/bin
+ - export PATH=$HOME/.local/bin:$PATH
+ - travis_retry curl -L https://github.com/commercialhaskell/stack/releases/download/v0.1.1.0/stack-0.1.1.0-x86_64-linux.gz | gunzip > $HOME/.local/bin/stack
+ - chmod a+x $HOME/.local/bin/stack
  - cat /proc/cpuinfo | grep name
 
- - if ! [ -f ~/.local/include/hpx/hpx.h ] ; then ./.grab_hpx_1.3.sh ~/.local/; fi
- - find ~/.local/
- - export PKG_CONFIG_PATH=~/.local/lib/pkgconfig:$PKG_CONFIG_PATH
- - pkg-config --modversion hpx
- - export LD_LIBRARY_PATH=~/.local/lib:$LD_LIBRARY_PATH
- - export C_INCLUDE_PATH=~/.local/include:$C_INCLUDE_PATH
+ - ./.grab_hpx_1.3.sh $HOME/.local/
+ - find $HOME/.local/
+ - export PKG_CONFIG_PATH=$HOME/.local/lib/pkgconfig:$PKG_CONFIG_PATH
+ - export LD_LIBRARY_PATH=$HOME/.local/lib:$LD_LIBRARY_PATH
+ - export C_INCLUDE_PATH=#HOME/.local/include:$C_INCLUDE_PATH
 
 install:
  - stack setup --no-terminal +RTS -N1 -RTS
