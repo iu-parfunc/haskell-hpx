@@ -13,8 +13,9 @@ before_install:
  - chmod a+x ~/.local/bin/stack
  - cat /proc/cpuinfo | grep name
 
- - ./.grab_hpx_1.3.sh
+ - if ! [ -f ~/.local/include/hpx/hpx.h ] ; then ./.grab_hpx_1.3.sh ~/.local/; fi
  - find ~/.local/
+ - pkg-config --modversion hpx
  - export LD_LIBRARY_PATH=~/.local/lib:$LD_LIBRARY_PATH
  - export C_INCLUDE_PATH=~/.local/include:$C_INCLUDE_PATH
 
