@@ -25,7 +25,7 @@ module Foreign.HPX {-
 )
        -}  where
 
-import           Control.Monad (liftM2)
+import           Control.Monad (liftM2, unless)
 
 import           Data.Bifunctor (first)
 import           Data.Binary (Binary(..), decode, encode)
@@ -50,6 +50,7 @@ import           Foreign.C2HS
 import           GHC.StaticPtr
 
 import           System.Environment (getProgName, getArgs)
+import           System.Exit (exitFailure)
 import           System.IO.Unsafe (unsafePerformIO)
 
 import Debug.Trace (traceShowM)
@@ -98,9 +99,9 @@ initWith argv =
   withArray argv'           $ \argv'' -> -- argv'' :: Ptr CString
   with argv''               $ \argv''' -> do -- argv''' :: Ptr (Ptr CString)
 
-    (_r, argc) <- hpxInit (length argv) argv'''
-        -- TODO throw exception on '_r'
-    x         <- peekArray argc =<< peek argv'''     -- :: [Ptr CString]
+    (r, argc) <- hpxInit (length argv) argv'''
+    unless (r == 0) $ printHelp >> exitFailure
+    x <- peekArray argc =<< peek argv''' -- :: [Ptr CString]
     mapM peekCString x
 
 {#fun unsafe hpx_init as ^
@@ -205,7 +206,7 @@ registerAction :: Binary a
                => ActionType
                -> HPXAttribute
                -> String
-               -> StaticPtr (a -> IO Int)
+               -> StaticPtr (a -> IO ())
                -> IO (Action a)
 registerAction actionT attr key clbk = do
     -- TODO: Figure out what error codes can be produced here
@@ -215,7 +216,7 @@ registerAction actionT attr key clbk = do
     c_callback :: ActionHandler
     c_callback cstr len = do
         bs <- unsafePackCStringLen (castPtr cstr, fromIntegral len)
-        fromIntegral <$> deRefStaticPtr clbk (decode (BL.fromStrict bs))
+        0 <$ deRefStaticPtr clbk (decode (BL.fromStrict bs))
 
 -- {-# INLINEABLE registerAction#-}
 -- registerAction :: String -> (Ptr () -> IO CInt) -> IO ()
@@ -273,12 +274,22 @@ run action = fmap (first fromIntegral) . hpxRun action . BL.toStrict . encode
 --        ) => Action f -> args -> IO ()
 -- run action = void . hpx_run action
 
-{#fun hpx_shutdown as ^
-  { cIntConv `Int' fromIntegral
+{#fun unsafe hpx_print_help as ^ {} -> `()' #}
+
+printHelp :: IO ()
+printHelp = hpxPrintHelp
+
+{#fun unsafe hpx_finalize as ^ {} -> `()' #}
+
+finalize :: IO ()
+finalize = hpxFinalize
+
+{#fun hpx_exit as ^
+  { cIntConv `Int'
   }       -> `()' #}
 
-shutdown :: Int -> IO Int
-shutdown = hpxShutdown
+exit :: Int -> IO ()
+exit = hpxExit
 
 two :: Num n => Consumer n
 two = (2 &)

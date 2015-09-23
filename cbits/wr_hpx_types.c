@@ -1,3 +1,4 @@
+#include <hpx/hpx.h>
 #include "wr_hpx_types.h"
 
 const hpx_type_t wr_hpx_char() {

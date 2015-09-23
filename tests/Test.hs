@@ -7,15 +7,15 @@ import Foreign
 import Foreign.C
 import Foreign.HPX as HPX
 
-fib :: String -> IO Int
+fib :: String -> IO ()
 fib x = do
   traceM x
-  HPX.shutdown 0
+  HPX.exit 0
 
-fibMain :: String -> IO Int
+fibMain :: String -> IO ()
 fibMain x = do
   traceM x
-  HPX.shutdown 0
+  HPX.exit 0
 
 main :: IO ()
 main = do

@@ -1,8 +1,7 @@
 #ifndef WR_HPX_TYPES_H
 #define WR_HPX_TYPES_H
 
-#include <ffi.h>
-#include <hpx/types.h>
+#include <hpx/hpx.h>
 
 const hpx_type_t wr_hpx_char();
 const hpx_type_t wr_hpx_uchar();
