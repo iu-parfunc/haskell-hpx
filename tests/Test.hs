@@ -1,37 +1,38 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE StaticPointers #-}
 
 import Foreign
 import Foreign.C
-import Foreign.C.Types
-import Foreign.Ptr
-import Foreign.HPX     as HPX
+import Foreign.HPX as HPX
 
+import Debug.Trace (traceM)
 
-fib :: Ptr () -> IO CInt
+fib :: String -> IO Int
 fib x = do
   print x
   HPX.shutdown 0
-  return 0
 
-
-fibMain :: Ptr () -> IO CInt
+fibMain :: String -> IO Int
 fibMain x = do
   print x
   HPX.shutdown 0
-  return 0
-
 
 main :: IO ()
 main = do
-  putStrLn " [Test] Call hpx init..."
+  traceM " [Test] Call hpx init..."
   strs <- HPX.init
-  putStrLn$  "Done with hpx init, returned "++ show (unlines strs)
+  traceM $  "Done with hpx init, returned " ++ show (unlines strs)
 
-  putStrLn " [Test] Registering actions fib and fibMain..."
-  HPX.registerAction "__hpx_fib" fib
-  HPX.registerAction "__hpx_fibMain" fibMain
-  HPX.registerAction "__hpx_fib2" fib
+  traceM " [Test] Registering actions fib and fibMain..."
+  fibAction     <- HPX.registerAction HPXDefault 0 "__hpx_fib" $ static fib
+  fibMainAction <- HPX.registerAction HPXDefault 0 "__hpx_fibMain" $ static fibMain
+  fib2Action    <- HPX.registerAction HPXDefault 0 "__hpx_fib2" $ static fib
 
-  putStrLn " [Test] Running HPX..."
-  HPX.run fibMain nullPtr 0
-  putStrLn " [Test] Exiting HPX..."
+--   traceShowM [rc1, rc2, rc3]
+--   traceShowM =<< peek (useAction fibAction)
+--   traceShowM =<< peek (useAction fibMainAction)
+--   traceShowM =<< peek (useAction fib2Action)
+
+  traceM " [Test] Running HPX..."
+  HPX.run fibMainAction "Hello, World!"
+  traceM " [Test] Exiting HPX..."
