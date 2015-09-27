@@ -41,9 +41,10 @@ library
 
 test-suite test-hpx-init
   type:                exitcode-stdio-1.0
-  main-is:             Test.hs
+  main-is:             Main.hs
+  other-modules:       HelloWorld
   hs-source-dirs:      tests
   default-language:    Haskell2010
-  build-depends:       base >= 4.7 && < 4.9
+  build-depends:       base  >= 4.8 && < 4.9
                      , haskell-hpx
   ghc-options:         -Wall -O2 -threaded

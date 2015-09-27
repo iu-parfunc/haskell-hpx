@@ -1,6 +1,7 @@
 {-# LANGUAGE StaticPointers #-}
-module Main (main) where
+module HelloWorld (helloWorld) where
 
+import Data.Functor (void)
 import Debug.Trace (traceM)
 import Foreign.HPX
 
@@ -14,11 +15,10 @@ fibMain x = do
   traceM x
   exit 0
 
-main :: IO ()
-main = withHPX $ \_args -> do
+helloWorld :: IO ()
+helloWorld = {- withHPX $ \_args -> -} do
   _fibAction    <- registerAction Default Marshalled "__hpx_fib" $ static fib
   fibMainAction <- registerAction Default Marshalled "__hpx_fibMain" $ static fibMain
   _fib2Action   <- registerAction Default Marshalled "__hpx_fib2" $ static fib
 
-  _ <- run fibMainAction "Hello, World!"
-  finalize
+  void $ run fibMainAction "Hello, World!"

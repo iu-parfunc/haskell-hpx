@@ -64,8 +64,12 @@ foreign import ccall unsafe "wrapper"
 -- Initialization
 --------------------------------------------------------------------------------
 
-withHPX :: ([String] -> IO ()) -> IO ()
-withHPX f = f =<< init
+withHPX :: ([String] -> IO a) -> IO a
+withHPX f = do
+  args <- init
+  res  <- f args
+  finalize
+  pure res
 
 {-# INLINEABLE init #-}
 init :: IO [String]
@@ -153,7 +157,8 @@ registerAction actionT attr key clbk = do
   }                  -> `Int' #}
   where
     withCStringLenConv :: BS.ByteString -> Consumer (CString, CInt)
-    withCStringLenConv bs f = unsafeUseAsCStringLen bs $ \(cstr, len) -> f (cstr, fromIntegral len)
+    withCStringLenConv bs f = unsafeUseAsCStringLen bs $ \(cstr, len) ->
+        f (cstr, fromIntegral len)
 
 run :: Binary a => Action a -> a -> IO Int
 run action = fmap fromIntegral . hpxRun action . BL.toStrict . encode
