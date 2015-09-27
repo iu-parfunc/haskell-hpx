@@ -2,38 +2,48 @@ name:                haskell-hpx
 version:             0.1
 -- synopsis:
 -- description:
+homepage:            https://github.com/iu-parfunc/haskell-hpx
+bug-reports:         https://github.com/iu-parfunc/haskell-hpx/issues
 license:             BSD3
 license-file:        LICENSE
 author:              Ryan Newton
 maintainer:          rrnewton@gmail.com
--- copyright:
+copyright:           (C) 2014-2015 Ryan Newton
 -- category:
+stability:           Experimental
+category:            Parallelism
 build-type:          Simple
-extra-source-files:  README.md, cbits/*.c, include/*.h
+tested-with:         GHC == 7.10.2
+extra-source-files:  CHANGELOG.md, README.md, cbits/*.c, include/*.h
 cabal-version:       >=1.10
 
+source-repository head
+  type:                git
+  location:            https://github.com/iu-parfunc/haskell-hpx
+
 library
-  exposed-modules:      Foreign.HPX
-  build-depends:        base       >= 4.8 && < 4.9
-                      , binary
-                      , bytestring >= 0.9 && < 0.11
-                      , containers >= 0.4 && < 0.6
-  build-tools:          c2hs       >= 0.23.1
-  default-language:     Haskell2010
-  hs-source-dirs:       src
-  pkgconfig-depends:    hpx >= 1.3.0
-  ghc-options:          -Wall
-  cc-options:           -Wall
-  c-sources:            cbits/wr_hpx_types.c
-  include-dirs:         include
-  includes:             wr_hpx_types.h
-  install-includes:     wr_hpx_types.h
+  exposed-modules:     Foreign.HPX
+  other-modules:       Foreign.Utils
+  build-depends:       base       >= 4.8 && < 4.9
+                     , binary
+                     , bytestring >= 0.9 && < 0.11
+                     , containers >= 0.4 && < 0.6
+  build-tools:         c2hs       >= 0.23.1
+  default-language:    Haskell2010
+  hs-source-dirs:      src
+  pkgconfig-depends:   hpx >= 1.3.0
+  ghc-options:         -Wall
+  cc-options:          -Wall
+  c-sources:           cbits/wr_hpx_types.c
+  include-dirs:        include
+  includes:            wr_hpx_types.h
+  install-includes:    wr_hpx_types.h
 
 test-suite test-hpx-init
-  type:                 exitcode-stdio-1.0
-  main-is:              Test.hs
-  hs-source-dirs:       tests
-  default-language:     Haskell2010
-  build-depends:        base >= 4.7 && < 4.9
-                      , haskell-hpx
-  ghc-options:          -Wall -O2 -threaded
+  type:                exitcode-stdio-1.0
+  main-is:             Test.hs
+  hs-source-dirs:      tests
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 4.9
+                     , haskell-hpx
+  ghc-options:         -Wall -O2 -threaded
