@@ -13,7 +13,7 @@ Portability: GHC (StaticPointers)
 Haskell bindings for HPX.
 -}
 module Foreign.HPX (
-      Foreign.HPX.init
+      withHPX
     , registerAction
     , run
     , finalize
@@ -39,6 +39,8 @@ import           Foreign.Utils
 
 import           GHC.StaticPtr
 
+import           Prelude hiding (init)
+
 import           System.Environment (getProgName, getArgs)
 import           System.Exit (exitFailure)
 
@@ -49,8 +51,6 @@ import           System.Exit (exitFailure)
 -- Types
 --------------------------------------------------------------------------------
 
-type Consumer a = forall b. (a -> IO b) -> IO b
-
 newtype Action a = Action { useAction :: Ptr CAction }
   deriving (Eq, Show)
 type CAction = {#type hpx_action_t #}
@@ -60,13 +60,12 @@ type ActionHandler = Ptr () -> {# type size_t #} -> IO CInt
 foreign import ccall unsafe "wrapper"
     newActionHandler :: ActionHandler -> IO (FunPtr ActionHandler)
 
--- TODO: Figure out best resource-freeing strategy for HPX
-withFunWrapper :: (a -> IO (FunPtr a)) -> a -> (FunPtr a -> IO b) -> IO b
-withFunWrapper wrapper hFun f = wrapper hFun >>= f
-
 --------------------------------------------------------------------------------
 -- Initialization
 --------------------------------------------------------------------------------
+
+withHPX :: ([String] -> IO ()) -> IO ()
+withHPX f = f =<< init
 
 {-# INLINEABLE init #-}
 init :: IO [String]
