@@ -1,10 +1,6 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StaticPointers #-}
-{-# LANGUAGE TypeFamilies #-}
 
 --------------------------------------------------------------------------------
 -- |
