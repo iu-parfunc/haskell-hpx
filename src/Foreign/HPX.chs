@@ -129,18 +129,25 @@ initWith argv =
     withHandler :: ActionHandler -> (FunPtr ActionHandler -> IO a) -> IO a
     withHandler = withFunWrapper newActionHandler
 
--- TODO: Remove the need to pass an explicit String ID
 registerAction :: Binary a
                => ActionType
                -> Attribute
-               -> String
                -> StaticPtr (a -> IO ())
                -> IO (Action a)
-registerAction actionT attr key clbk = do
+registerAction actionT attr clbk = do
     -- TODO: Figure out what error codes can be produced here
     (_r, a) <- hpxRegisterAction actionT attr key c_callback
     return a
   where
+    -- This is an internal name that is distinct for every static pointer,
+    -- so we use that as a unique ID
+    key :: String
+    key = case staticPtrInfo clbk of
+               StaticPtrInfo { spInfoPackageKey = pk
+                             , spInfoModuleName = mn
+                             , spInfoName       = inf
+                             } -> pk ++ mn ++ inf
+
     c_callback :: ActionHandler
     c_callback cstr len = do
         bs <- unsafePackCStringLen (castPtr cstr, fromIntegral len)

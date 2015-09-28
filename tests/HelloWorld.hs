@@ -17,8 +17,8 @@ fibMain x = do
 
 helloWorld :: IO ()
 helloWorld = {- withHPX $ \_args -> -} do
-  _fibAction    <- registerAction Default Marshalled "__hpx_fib" $ static fib
-  fibMainAction <- registerAction Default Marshalled "__hpx_fibMain" $ static fibMain
-  _fib2Action   <- registerAction Default Marshalled "__hpx_fib2" $ static fib
+  _fibAction    <- registerAction Default Marshalled $ static fib
+  fibMainAction <- registerAction Default Marshalled $ static fibMain
+  _fib2Action   <- registerAction Default Marshalled $ static fib
 
   void $ run fibMainAction "Hello, World!"
