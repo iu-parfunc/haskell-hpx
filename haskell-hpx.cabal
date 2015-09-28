@@ -23,7 +23,7 @@ source-repository head
 
 library
   exposed-modules:     Foreign.HPX
-  other-modules:       Foreign.Utils
+                       Foreign.Utils
   build-depends:       base       >= 4.8 && < 4.9
                      , binary
                      , bytestring >= 0.9 && < 0.11
@@ -47,4 +47,4 @@ test-suite test-hpx-init
   default-language:    Haskell2010
   build-depends:       base  >= 4.8 && < 4.9
                      , haskell-hpx
-  ghc-options:         -Wall -O2 -threaded
+  ghc-options:         -Wall -threaded

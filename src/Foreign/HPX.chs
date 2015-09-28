@@ -52,7 +52,7 @@ import           System.Exit (exitFailure)
 --------------------------------------------------------------------------------
 
 newtype Action a = Action { useAction :: Ptr CAction }
-  deriving (Eq, Show)
+  deriving (Eq, Ord)
 type CAction = {#type hpx_action_t #}
 
 type ActionHandler = Ptr () -> {# type size_t #} -> IO CInt
@@ -87,7 +87,7 @@ initWith argv =
     mapM peekCString x
 
 {#fun unsafe hpx_init as ^
-  { withIntConv* `Int'                   peekIntConv*
+  { withIntConv* `Int' peekIntConv*
   , id           `Ptr (Ptr (Ptr CChar))'
   }           -> `Int' #}
 

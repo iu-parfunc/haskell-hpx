@@ -16,6 +16,8 @@ import Foreign.Marshal.Utils
 import Foreign.Ptr
 import Foreign.Storable
 
+-- import System.Posix.Signals
+
 type Consumer a = forall b. (a -> IO b) -> IO b
 
 peekIntConv :: (Storable a, Integral a, Integral b)
@@ -29,3 +31,10 @@ withFunWrapper wrapper hFun f = wrapper hFun >>= f
 withIntConv :: (Storable b, Integral a, Integral b)
             => a -> (Ptr b -> IO c) -> IO c
 withIntConv = with . fromIntegral
+
+-- withSigVTALRMBlocked :: IO a -> IO a
+-- withSigVTALRMBlocked action = do
+--   blockSignals   $ addSignal sigVTALRM emptySignalSet
+--   r <- action
+--   unblockSignals $ addSignal sigVTALRM emptySignalSet
+--   pure r
