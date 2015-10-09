@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# This is a good test script to run locally to validate before committing.
+# (It is also the one currently run by our Jenkins CI instance.)
+
 set -xe
 
 docker build -t haskell-hpx:1.0 .

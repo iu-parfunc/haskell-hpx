@@ -13,7 +13,7 @@ RUN cd haskell-hpx-src/ && ./.grab_hpx_1.3.sh /usr
 # Changing the source code under this directory should not trigger
 # a reexecution at this layer.
 COPY haskell-hpx.cabal stack.yaml haskell-hpx-src/
-RUN cd haskell-hpx-src/ && \
+RUN cd haskell-hpx-src/ && mkdir cbits && mkdir include && \
     stack install --only-dependencies
 
 
