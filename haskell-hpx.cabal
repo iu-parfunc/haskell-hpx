@@ -29,6 +29,7 @@ library
   build-depends:       base       >= 4.8 && < 4.9
                      , binary
                      , bytestring >= 0.9 && < 0.11
+                     , clock      >= 0.5 && < 0.6
                      , containers >= 0.4 && < 0.6
   build-tools:         c2hs       >= 0.23.1
   default-language:    Haskell2010
@@ -36,10 +37,10 @@ library
   pkgconfig-depends:   hpx >= 1.3.0
   ghc-options:         -Wall
   cc-options:          -Wall
-  c-sources:           cbits/wr_hpx_types.c
+  c-sources:           cbits/wr_hpx.c
   include-dirs:        include
-  includes:            wr_hpx_types.h
-  install-includes:    wr_hpx_types.h
+  includes:            wr_hpx.h
+  install-includes:    wr_hpx.h
 
 test-suite test-hpx-init
   type:                exitcode-stdio-1.0
