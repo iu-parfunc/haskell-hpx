@@ -1,23 +1,22 @@
 {-# LANGUAGE StaticPointers #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module HelloWorld (helloWorld) where
-
 import Control.Monad
-
-import Data.Int
+-- import Data.Int
+import Data.Typeable
 import Debug.Trace
-
 import Foreign.HPX
-
 import GHC.StaticPtr
 
-fib :: String -> IO ()
-fib x = do
+
+_fib :: String -> IO ()
+_fib x = do
   traceM x
   exit 0
 
-fibSP :: StaticPtr (String -> IO ())
-fibSP = static fib
+_fibSP :: StaticPtr (String -> IO ())
+_fibSP = static _fib
 
 fibMain :: String -> IO ()
 fibMain x = do
@@ -36,13 +35,51 @@ helloWorld = do
   forever $ run fibMainSP "HELLO WORLD"
 
 
+--------------------------------------------------------------------------------
+-- Example of wrapping a StaticPtr to another with a common type.
+--------------------------------------------------------------------------------
+
+scompose :: StaticPtr (b -> c) -> StaticPtr (a -> b) -> StaticPtr (a -> c)
+scompose = undefined
+
+_wrap :: forall a b . (Read a, Show b, Typeable a, Typeable b)
+     => StaticPtr (a -> b) -> StaticPtr (String -> String)
+_wrap fn =
+   undefined -- sh `scompose` fn `scompose` rd
+  where
+-- This doesn't work:
+--   rd :: StaticPtr (String -> a)
+--   rd = static read -- (read :: String -> a)
+--   sh :: StaticPtr (b -> String)
+--   sh = static show
+
+   -- This monomorphic version works:
+   t1 :: StaticPtr (StaticPtr (Int -> Int) -> (String -> String))
+   t1 = static ((\ f -> show . f . read) . deRefStaticPtr)
+
+-- This version that references the scoped type variables (dictionaries) cannot work:
+--   t2 :: StaticPtr (StaticPtr (a -> b) -> (String -> String))
+--   t2 = static ((\ f -> show . f . read) . deRefStaticPtr)
+
+
+
+--------------------------------------------------------------------------------
+-- Old Scraps:  Random thoughts about static bind:
+--------------------------------------------------------------------------------
+
+-- Note that the same top level varref can get two static table entries:
+--
 -- e :: Int
 -- e = 1 + 2
 --
 -- x = static e
 --
 -- y = static e
---
+
+
+----------------------------------------
+
+
 -- -- instance Monad m => Monad (StaticPointer . m) where
 --
 -- sbind :: Monad m => m a -> StaticPtr (a -> m b) -> m b
@@ -70,45 +107,3 @@ helloWorld = do
 --      hpx_call r getAction (static (\b -> m3 >> m4))
 --
 --   -}
---
---
--- type HpxAction a = IO a
---
--- parfib :: Int64 -> HpxAction Int64
--- parfib n | n <= 2 = return' 1
--- parfib n = do
---     xf <- spawn hpxHere (static parfib) (n-1)
---     y  <-               parfib (n-2)
---     x  <- get xf
---     return' (x+y)
---
--- -- Here's a version of return that also calls hpxContinue:
--- return' = return
--- -- Nah... we probably don't need that....
---
--- spawn = undefined
---
--- main = runHPX $ do x <- parfib 35
---                    print x
---
--- hpxHere = undefined
--- get = undefined
--- runHPX = undefined
---
--- {-
--- -- Two armed version:
--- parfib' :: Int64 -> Par Int64
--- parfib' n | n <= 2 = return' 1
--- parfib' n = do
---     xf <- spawn hpxHere (static parfib) (n-1)
---     yf <- spawn hpxHere (static parfib) (n-2)
---     x  <- get xf
---     y  <- get xf
---     return' (x+y)
--- -}
---
--- -- Cilk style:
--- --  x = spawn f
--- --  y = spawn g
--- --  sync
--- --  x + y

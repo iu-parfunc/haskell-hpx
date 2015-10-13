@@ -45,7 +45,7 @@ library
 test-suite test-hpx-init
   type:                exitcode-stdio-1.0
   main-is:             Main.hs
-  other-modules:       HelloWorld
+  other-modules:       HelloWorld, ParfibMockup, Fibonacci
   hs-source-dirs:      tests
   default-language:    Haskell2010
   build-depends:       base  >= 4.8 && < 4.9
