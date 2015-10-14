@@ -1,6 +1,6 @@
-[submodule "hpx"]
-	path = hpx
-	url = git@gitlab.crest.iu.edu:extreme/hpx.git
+# [submodule "hpx"]
+# 	path = hpx
+# 	url = git@gitlab.crest.iu.edu:extreme/hpx.git
 [submodule "distributed-closure"]
 	path = distributed-closure
 	url = git@github.com:iu-parfunc/distributed-closure.git
