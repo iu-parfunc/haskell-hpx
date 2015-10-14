@@ -188,3 +188,24 @@ void wr_hpx_time_construct(hpx_time_t *dest, const unsigned long s, const unsign
 void wr_hpx_time_point(hpx_time_t *dest, const hpx_time_t *time, const hpx_time_t *duration) {
   *dest = hpx_time_point(*time, *duration);
 }
+
+// Extra C utilities that we call from Haskell:
+// --------------------------------------------------------------------------------
+
+// A place to put extra initialization.  For now, register the
+// singular Haskell upcall funptr, which we assume to have been
+// written already.
+void hs_hpx_extra_init() {
+  //  hpx_register_action();
+  // ((void*())_HS_UPCALL)()
+}
+
+typedef void* hs_upcall_t;
+
+// Here we use a global variable as a place to stash a function
+// pointer for the single Haskell upcall we currently need.
+void* _HS_UPCALL = 0;
+
+void set_hs_upcall(void* arg) {
+  _HS_UPCALL = arg;
+}

@@ -53,4 +53,7 @@ void       wr_hpx_time_elapsed(const hpx_time_t *start, hpx_time_t *diff);
 void       wr_hpx_time_construct(hpx_time_t *dest, const unsigned long s, const unsigned long ns);
 void       wr_hpx_time_point(hpx_time_t *dest, const hpx_time_t *time, const hpx_time_t *duration);
 
+
+void       hs_hpx_extra_init();
+
 #endif
