@@ -8,6 +8,8 @@ import Foreign.HPX
 import Foreign.Storable
 
 import GHC.StaticPtr
+import Control.Distributed.Closure
+
 
 import Text.Printf
 
@@ -21,8 +23,8 @@ fibAction n
                                       . sizeOf
                                       $ (undefined :: Int)
 
-      call here fibActionSP lco1 (n - 1)
-      call here fibActionSP lco2 (n - 2)
+      _ <- call here fibActionSP lco1 (n - 1)
+      _ <- call here fibActionSP lco2 (n - 2)
       [fns1, fns2] <- map fst <$> getAllLCO lcos
       deleteLCO lco1 nullLCO
       deleteLCO lco2 nullLCO
@@ -30,8 +32,15 @@ fibAction n
       let fn = fns1 + fns2
       threadContinue fn
 
+tempAction :: Int -> IO Int
+tempAction n = do
+  printf "IN TEMP ACTION: %d\n" n
+  threadContinue 888
+  return 989
+
 fibActionSP :: StaticPtr (Int -> IO Int)
-fibActionSP = static fibAction
+-- fibActionSP = static fibAction
+fibActionSP = static tempAction
 
 fibMainAction :: Int -> IO ()
 fibMainAction n = do
@@ -58,4 +67,5 @@ fibonacci :: IO ()
 fibonacci = do
   registerAction Default Marshalled fibActionSP
   registerAction Default Marshalled fibMainActionSP
-  void $ run fibMainActionSP 1
+  ret <- run fibMainActionSP 1
+  putStrLn$ "HPX run exit code was "++show ret

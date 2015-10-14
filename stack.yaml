@@ -2,10 +2,13 @@ flags: {}
 
 packages:
   - '.'
+  - './distributed-closure/'
+  - './distributed-closure/vendor/binary'
 
 extra-deps: []
 
-resolver: lts-3.4
+# resolver: lts-3.4
+resolver: nightly-2015-06-05
 
 # [2015.09.19] Disabling for now and just running stack *inside* the
 # docker image.  That way is safer currently.

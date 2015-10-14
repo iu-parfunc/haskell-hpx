@@ -62,7 +62,7 @@ instance Binary StaticTypeRep where
 -------------------------------------------------------------------------------
 -- StaticRep
 
-data StaticRep = StaticRep StaticKey StaticTypeRep deriving Generic
+data StaticRep = StaticRep !StaticKey !StaticTypeRep deriving Generic
 
 instance Binary StaticRep
 
