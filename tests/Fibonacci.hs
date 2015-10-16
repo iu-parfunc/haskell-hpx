@@ -2,15 +2,14 @@
 {-# LANGUAGE StaticPointers #-}
 module Fibonacci (fibonacci) where
 
-import Control.Monad
-
-import Foreign.HPX
-import Foreign.Storable
-
-import GHC.StaticPtr
 import Control.Distributed.Closure
-
-
+import Control.Monad
+import Foreign.HPX
+import Foreign.C.Types
+import Foreign.Ptr
+import Foreign.Storable
+import GHC.StaticPtr
+import System.IO
 import Text.Printf
 
 fibAction :: Int -> IO Int
@@ -35,8 +34,8 @@ fibAction n
 tempAction :: Int -> IO Int
 tempAction n = do
   printf "IN TEMP ACTION: %d\n" n
-  threadContinue 888
-  return 989
+  threadContinue (888 :: Int)
+  return (989 :: Int)
 
 fibActionSP :: StaticPtr (Int -> IO Int)
 -- fibActionSP = static fibAction
@@ -63,9 +62,26 @@ fibMainAction n = do
 fibMainActionSP :: StaticPtr (Int -> IO ())
 fibMainActionSP = static fibMainAction
 
+oneTrueUpcall :: Ptr () -> CULong -> IO CInt
+oneTrueUpcall _ _ =
+  do putStrLn "In oneTrueUpCall..."
+     return 0
+
 fibonacci :: IO ()
 fibonacci = do
-  registerAction Default Marshalled fibActionSP
-  registerAction Default Marshalled fibMainActionSP
-  ret <- run fibMainActionSP 1
-  putStrLn$ "HPX run exit code was "++show ret
+
+  -- TODO: Move something like this into generic run function / initialization code:
+  putStrLn "[HS] Calling Extra HPX initialization"; hFlush stdout
+  hsHPXExtraInit
+  fptr <- newActionHandler oneTrueUpcall
+  setHSUpcall fptr
+
+  -- putStrLn "[HS] Next register fib actions (old stuff)..."
+  -- registerAction Default Marshalled fibActionSP
+  -- registerAction Default Marshalled fibMainActionSP
+  -- putStrLn "[HS] Finally call run:"
+  -- ret <- run fibMainActionSP 1
+  -- putStrLn$ "[HS] HPX run exit code was "++show ret
+
+  putStrLn$ "[HS] fibonacci call completing..."
+  hFlush stdout
