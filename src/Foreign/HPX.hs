@@ -69,10 +69,10 @@ registerAction :: Binary a
                -> ActionAttribute
                -> StaticPtr (a -> IO ())
                -> IO ()
-registerAction actionT attr sptr =
-  withCString keyName $ \c_keyName ->
-  alloca              $ \p_action  -> do
-    c_clbk <- mk'hpx_action_handler_t clbk
+registerAction actionT attr sptr = do
+    c_keyName <- newCString keyName
+    p_action  <- new Invalid
+    c_clbk    <- mk'hpx_action_handler_t clbk
     -- TODO: Figure out what error codes can be produced here
     _r <- c'hpx_register_action (toC actionT)
                                 (fromIntegral attr)
@@ -106,7 +106,9 @@ run sptr arg = do
   p_action <- lookupAction sptr
   let bsEncArg = BL.toStrict $ encode arg
   r <- unsafeUseAsCStringLen bsEncArg $ \(c_arg, c_argLen) ->
-    c'_hpx_run (castPtr p_action) 2 c_arg (fromIntegral c_argLen)
+    with c_arg                   $ \p_c_arg    ->
+    with (fromIntegral c_argLen) $ \p_c_argLen ->
+      c'_hpx_run (castPtr p_action) 2 p_c_arg p_c_argLen
   return $ fromIntegral r
 
 exit :: Int -> IO ()
@@ -148,6 +150,14 @@ pattern Coalesced <- ((== c'HPX_COALESCED) -> True) where
 pattern Compressed :: ActionAttribute
 pattern Compressed <- ((== c'HPX_COMPRESSED) -> True) where
     Compressed = c'HPX_COMPRESSED
+
+pattern Null :: Action
+pattern Null <- ((== Action c'HPX_ACTION_NULL) -> True) where
+    Null = Action c'HPX_ACTION_NULL
+
+pattern Invalid :: Action
+pattern Invalid <- ((== Action c'HPX_ACTION_INVALID) -> True) where
+    Invalid = Action c'HPX_ACTION_INVALID
 
 {-
 import           Control.Monad (liftM2, unless, zipWithM)

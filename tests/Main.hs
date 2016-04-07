@@ -4,7 +4,7 @@ import Foreign.HPX
 import HelloWorld (helloWorld)
 
 main :: IO ()
-main = withHPX $ \_args -> do
-  putStrLn "TESTS BEGIN"
+main = withHPX $ \args -> do
+  print args
   helloWorld
   return ()

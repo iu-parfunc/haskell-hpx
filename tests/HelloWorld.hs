@@ -3,23 +3,13 @@
 {-# LANGUAGE GADTs #-}
 
 
-module HelloWorld
-  -- (helloWorld)
- where
+module Main (main) where
 
 import Control.Monad
 import Debug.Trace
 import Foreign.HPX
 import Foreign.HPX.Types
 import GHC.StaticPtr
-
-_fib :: String -> IO ()
-_fib x = do
-  traceM x
-  exit 0
-
-_fibSP :: StaticPtr (String -> IO ())
-_fibSP = static _fib
 
 fibMain :: String -> IO ()
 fibMain x = do
@@ -29,12 +19,13 @@ fibMain x = do
 fibMainSP :: StaticPtr (String -> IO ())
 fibMainSP = static fibMain
 
-helloWorld :: IO ()
-helloWorld = do
---   registerAction Default Marshalled $ static fib
-  registerAction Default Marshalled fibMainSP
---   registerAction Default Marshalled $ static fib
-  forever $ run fibMainSP "HELLO WORLD"
+main :: IO ()
+main = do
+  registerAction Default NoAttribute fibMainSP
+  withHPX $ \_ -> do
+    return ()
+    r <- run fibMainSP "HELLO WORLD"
+    print r
 
 {-
 --------------------------------------------------------------------------------
