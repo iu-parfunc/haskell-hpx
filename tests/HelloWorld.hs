@@ -8,13 +8,10 @@ module HelloWorld
  where
 
 import Control.Monad
--- import Data.Int
-import Data.Typeable
-import Data.ByteString.Char8
 import Debug.Trace
 import Foreign.HPX
+import Foreign.HPX.Types
 import GHC.StaticPtr
-
 
 _fib :: String -> IO ()
 _fib x = do
@@ -27,7 +24,6 @@ _fibSP = static _fib
 fibMain :: String -> IO ()
 fibMain x = do
   traceM x
-  -- hpx_continue ??
   exit 0
 
 fibMainSP :: StaticPtr (String -> IO ())
@@ -40,7 +36,7 @@ helloWorld = do
 --   registerAction Default Marshalled $ static fib
   forever $ run fibMainSP "HELLO WORLD"
 
-
+{-
 --------------------------------------------------------------------------------
 -- Example of wrapping a StaticPtr to another with a common type.
 --------------------------------------------------------------------------------
@@ -161,3 +157,5 @@ rs3 = static Prelude.reverse
 --      hpx_call r getAction (static (\b -> m3 >> m4))
 --
 --   -}
+
+-}

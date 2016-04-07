@@ -13,6 +13,7 @@ Miscellaneous C2HS-related utilities.
 -}
 module Foreign.Utils where
 
+{-
 import qualified Data.ByteString as BS (ByteString)
 import           Data.ByteString.Unsafe (unsafeUseAsCStringLen)
 import           Data.Proxy
@@ -64,3 +65,4 @@ withPtr ptr f = peek ptr >>= f
 --   r <- action
 --   unblockSignals $ addSignal sigVTALRM emptySignalSet
 --   pure r
+-}

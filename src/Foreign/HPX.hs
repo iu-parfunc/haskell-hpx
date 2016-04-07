@@ -1,9 +1,6 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE ForeignFunctionInterface #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE StaticPointers #-}
+{-# LANGUAGE ViewPatterns #-}
 
 {-|
 Module:      Foreign.HPX
@@ -11,12 +8,148 @@ Copyright:   (C) 2014-2015 Ryan Newton
 License:     BSD-style (see the file LICENSE)
 Maintainer:  Ryan Newton
 Stability:   Experimental
-Portability: GHC (StaticPointers)
+Portability: GHC
 
 Haskell bindings for HPX.
 -}
 module Foreign.HPX where
 
+import           Bindings.HPX
+
+import           Control.Applicative (liftA2)
+import           Control.Monad (unless)
+
+import           Data.Binary (Binary(..), decode, encode)
+import qualified Data.ByteString.Lazy as BL
+import           Data.ByteString.Unsafe
+import           Data.IORef
+import qualified Data.Map as Map
+import           Data.Map (Map)
+
+import           Foreign
+import           Foreign.C.String
+import           Foreign.C.Types
+import           Foreign.HPX.C
+import           Foreign.HPX.Types
+
+import           GHC.StaticPtr
+
+import           Prelude hiding (init)
+
+import           System.Environment (getArgs, getProgName)
+import           System.Exit (exitFailure)
+import           System.IO.Unsafe (unsafePerformIO)
+
+withHPX :: ([String] -> IO a) -> IO a
+withHPX f = do
+  args <- init
+  res  <- f args
+  c'hpx_finalize
+  pure res
+
+{-# INLINEABLE init #-}
+init :: IO [String]
+init = initWith =<< liftA2 (:) getProgName getArgs
+
+initWith :: [String] -> IO [String]
+initWith argv =
+  with (fromIntegral (length argv)) $ \p_argc -> -- p_argc      :: Ptr CInt
+  withMany withCString argv         $ \argv'  -> -- argv'       :: [CString]
+  withArray argv'                   $ \argv'' -> -- argv''      :: Ptr CString
+  with argv''                       $ \argv''' -> do -- argv''' :: Ptr (Ptr CString)
+
+    r <- c'hpx_init p_argc argv'''
+    unless (r == 0) $ c'hpx_print_help >> exitFailure
+    argc <- fromIntegral <$> peek p_argc
+    x <- peekArray argc =<< peek argv''' -- :: [Ptr CString]
+    mapM peekCString x
+
+registerAction :: Binary a
+               => ActionType
+               -> ActionAttribute
+               -> StaticPtr (a -> IO ())
+               -> IO ()
+registerAction actionT attr sptr =
+  withCString keyName $ \c_keyName ->
+  alloca              $ \p_action  -> do
+    c_clbk <- mk'hpx_action_handler_t clbk
+    -- TODO: Figure out what error codes can be produced here
+    _r <- c'hpx_register_action (toC actionT)
+                                (fromIntegral attr)
+                                c_keyName
+                                (castPtr p_action)
+                                3
+                                c_clbk
+                                c'HPX_POINTER
+                                c'HPX_SIZE_T
+    modifyIORef registeredActionTable (Map.insert key p_action)
+  where
+    key :: StaticKey
+    key = staticKey sptr
+
+    -- This is an internal name that is distinct for every static pointer,
+    -- so we use that as a unique ID
+    keyName :: String
+    keyName = case staticPtrInfo sptr of
+                   StaticPtrInfo { spInfoPackageKey = pk
+                                 , spInfoModuleName = mn
+                                 , spInfoName       = inf
+                                 } -> pk ++ mn ++ inf
+
+    clbk :: Ptr () -> CSize -> IO CInt
+    clbk cstr len = do
+        bs <- unsafePackCStringLen (castPtr cstr, fromIntegral len)
+        0 <$ deRefStaticPtr sptr (decode (BL.fromStrict bs))
+
+run :: Binary a => StaticPtr (a -> IO ()) -> a -> IO Int
+run sptr arg = do
+  p_action <- lookupAction sptr
+  let bsEncArg = BL.toStrict $ encode arg
+  r <- unsafeUseAsCStringLen bsEncArg $ \(c_arg, c_argLen) ->
+    c'_hpx_run (castPtr p_action) 2 c_arg (fromIntegral c_argLen)
+  return $ fromIntegral r
+
+exit :: Int -> IO ()
+exit = c'hpx_exit . fromIntegral
+
+registeredActionTable :: IORef (Map StaticKey (Ptr Action))
+registeredActionTable = unsafePerformIO $ newIORef Map.empty
+{-# NOINLINE registeredActionTable #-}
+
+lookupAction :: StaticPtr (a -> IO ()) -> IO (Ptr Action)
+lookupAction sp = do
+  mbAction <- Map.lookup (staticKey sp) <$> readIORef registeredActionTable
+  maybe (error "Lookup of unregistered action") return mbAction
+
+pattern NoAttribute :: ActionAttribute
+pattern NoAttribute <- ((== c'HPX_ATTR_NONE) -> True) where
+    NoAttribute = c'HPX_ATTR_NONE
+
+pattern Marshalled :: ActionAttribute
+pattern Marshalled <- ((== c'HPX_MARSHALLED) -> True) where
+    Marshalled = c'HPX_MARSHALLED
+
+pattern Pinned :: ActionAttribute
+pattern Pinned <- ((== c'HPX_PINNED) -> True) where
+    Pinned = c'HPX_PINNED
+
+pattern Internal :: ActionAttribute
+pattern Internal <- ((== c'HPX_INTERNAL) -> True) where
+    Internal = c'HPX_INTERNAL
+
+pattern Vectored :: ActionAttribute
+pattern Vectored <- ((== c'HPX_VECTORED) -> True) where
+    Vectored = c'HPX_VECTORED
+
+pattern Coalesced :: ActionAttribute
+pattern Coalesced <- ((== c'HPX_COALESCED) -> True) where
+    Coalesced = c'HPX_COALESCED
+
+pattern Compressed :: ActionAttribute
+pattern Compressed <- ((== c'HPX_COMPRESSED) -> True) where
+    Compressed = c'HPX_COMPRESSED
+
+{-
 import           Control.Monad (liftM2, unless, zipWithM)
 
 import           Data.Binary (Binary(..), decode, encode)
@@ -348,3 +481,4 @@ localities = hpxGetNumRanks
 
 threads :: IO Int
 threads = hpxGetNumThreads
+-}
