@@ -53,7 +53,15 @@ void       wr_hpx_time_elapsed(const hpx_time_t *start, hpx_time_t *diff);
 void       wr_hpx_time_construct(hpx_time_t *dest, const unsigned long s, const unsigned long ns);
 void       wr_hpx_time_point(hpx_time_t *dest, const hpx_time_t *time, const hpx_time_t *duration);
 
+// ------------------------------------------------------------
+
+// Matches
+
+// TODO: This may need to take several arguments... but for now it
+// looks just like ActionHandler:
+typedef int (*hs_upcall_t)(void*, unsigned long);
 
 void       hs_hpx_extra_init();
+void       set_hs_upcall(hs_upcall_t arg);
 
 #endif

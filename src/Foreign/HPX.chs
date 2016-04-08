@@ -62,6 +62,8 @@ import           System.IO.Unsafe (unsafePerformIO)
 --   deriving (Eq, Ord, Storable)
 type HPXAction = {#type hpx_action_t #}
 
+type HSUpcall = {#type hs_upcall_t #}
+
 -- castAction :: (Typeable a, Typeable b, Typeable r, Typeable s) => Action a r -> Maybe (Action b s)
 -- castAction = cast
 --
@@ -69,6 +71,7 @@ type HPXAction = {#type hpx_action_t #}
 -- withAction = withPtr . useAction
 
 type ActionHandler = Ptr () -> Size -> IO CInt
+-- type ActionHandler = Ptr () -> CULong -> IO CInt
 
 foreign import ccall unsafe "wrapper"
     newActionHandler :: ActionHandler -> IO (FunPtr ActionHandler)
@@ -348,3 +351,11 @@ localities = hpxGetNumRanks
 
 threads :: IO Int
 threads = hpxGetNumThreads
+
+
+foreign import ccall unsafe "wr_hpx.h hs_hpx_extra_init"
+  hsHPXExtraInit :: IO ()
+
+-- Type matches `hs_upcall_t`:
+foreign import ccall unsafe "wr_hpx.h set_hs_upcall"
+  setHSUpcall :: HSUpcall -> IO ()

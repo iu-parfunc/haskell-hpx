@@ -1,4 +1,5 @@
 #include <hpx/hpx.h>
+#include <stdio.h>
 #include "wr_hpx.h"
 
 hpx_type_t wr_hpx_char() {
@@ -192,20 +193,37 @@ void wr_hpx_time_point(hpx_time_t *dest, const hpx_time_t *time, const hpx_time_
 // Extra C utilities that we call from Haskell:
 // --------------------------------------------------------------------------------
 
+
+static hpx_action_t _hs_upcall_then_continue = 0;
+
+// Here we use a global variable as a place to stash a function
+// pointer for the single Haskell upcall we currently need.
+hs_upcall_t _HS_UPCALL_FUNPTR = 0;
+
+void set_hs_upcall(hs_upcall_t arg) {
+  printf("[C] Setting Haskell upcall ptr to %p\n", (void*)arg);  fflush(stdout);
+  _HS_UPCALL_FUNPTR = arg;
+}
+
+static int _hs_upcall_then_continue_action(void *payload, size_t size) {
+  printf("[C] Umm, this should upcall to Haskell and kill the thread by continue\n");
+  fflush(stdout);
+
+  char outbuf[4096];
+  int outsz = 0;
+  int code = (*_HS_UPCALL_FUNPTR)(payload, size);
+
+  hpx_thread_continue(outbuf, outsz);
+  return 0;
+}
+
 // A place to put extra initialization.  For now, register the
 // singular Haskell upcall funptr, which we assume to have been
 // written already.
 void hs_hpx_extra_init() {
-  //  hpx_register_action();
-  // ((void*())_HS_UPCALL)()
-}
-
-typedef void* hs_upcall_t;
-
-// Here we use a global variable as a place to stash a function
-// pointer for the single Haskell upcall we currently need.
-void* _HS_UPCALL = 0;
-
-void set_hs_upcall(void* arg) {
-  _HS_UPCALL = arg;
+  printf("[C] Calling extra initialization function...\n"); fflush(stdout);
+  HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,
+                      _hs_upcall_then_continue,
+                      _hs_upcall_then_continue_action,
+                      HPX_POINTER, HPX_SIZE_T);
 }
