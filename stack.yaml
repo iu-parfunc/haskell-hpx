@@ -8,7 +8,7 @@ packages:
   extra-dep: true
 - location:
     git: git@github.com:iu-parfunc/bindings-hpx
-    commit: 15cfbd634de6c4f8f026ef26af47c9ca47f834ee
+    commit: 8a40caee411867101c90802fe4bd1166043a8712
   extra-dep: true
 
 extra-deps:
