@@ -1,11 +1,20 @@
-flags: {}
+resolver: lts-5.13
 
 packages:
-  - '.'
+- '.'
+- location:
+    git: git@github.com:RyanGlScott/bindings-dsl
+    commit: e918a9eea5b153c78f4a95c30262fdf917603d2c
+  extra-dep: true
+- location:
+    git: git@github.com:iu-parfunc/bindings-hpx
+    commit: 15cfbd634de6c4f8f026ef26af47c9ca47f834ee
+  extra-dep: true
 
-extra-deps: []
-
-resolver: lts-3.4
+extra-deps:
+- bindings-dsl-1.0.23
+- bindings-hpx-0.1
+- bindings-libffi-0.3
 
 # [2015.09.19] Disabling for now and just running stack *inside* the
 # docker image.  That way is safer currently.
