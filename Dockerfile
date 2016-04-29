@@ -1,13 +1,13 @@
 # FROM ubuntu:15.10
-FROM fpco/stack-build:lts-3.4
+FROM fpco/stack-build:lts-5.13
 
 RUN apt-get update && apt-get install -y \
      gcc g++ make wget
 
 # ADD http://hpx.crest.iu.edu/release/HPX_Release_v1.3.0.tar.gz ./
 
-COPY .grab_hpx_1.3.sh haskell-hpx-src/
-RUN cd haskell-hpx-src/ && ./.grab_hpx_1.3.sh /usr
+COPY .grab_hpx_2.2.sh haskell-hpx-src/
+RUN cd haskell-hpx-src/ && ./.grab_hpx_2.2.sh /usr
 
 # First, build the dependencies and cache them in a separate layer.
 # Changing the source code under this directory should not trigger
@@ -21,4 +21,5 @@ RUN cd haskell-hpx-src/ && mkdir cbits && mkdir include && \
 COPY . haskell-hpx-src/
 # Here we do the build directly INSIDE the container.
 RUN cd haskell-hpx-src/ && \
-    stack build
+    stack build && \
+    stack test

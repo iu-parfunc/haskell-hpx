@@ -11,14 +11,18 @@ fi
 
 set -xe
 
-wget http://hpx.crest.iu.edu/release/HPX_Release_v1.3.0.tar.gz
-tar xf HPX_Release_v1.3.0.tar.gz
-rm HPX_Release_v1.3.0.tar.gz
+HPX_VER=2.2.0
+HPX_DIR=hpx-${HPX_VER}
+HPX_TGZ=${HPX_DIR}.tar.gz
 
-cd HPX_Release_v1.3.0/hpx
+wget http://hpx.crest.iu.edu/release/${HPX_TGZ}
+tar xf ${HPX_TGZ}
+rm ${HPX_TGZ}
+
+cd ${HPX_DIR}/hpx
 ./configure --prefix=$PREFIX --enable-shared CFLAGS="-O0 -g" --enable-debug
 make -j
 make install
 cd ../../
 
-rm -rf HPX_Release_v1.3.0/
+rm -rf ${HPX_DIR}/
