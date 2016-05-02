@@ -1,4 +1,5 @@
-resolver: lts-5.13
+# This must be one that the corresponding version of NixPkgs knows about:
+resolver: lts-5.9
 
 packages:
 - '.'
@@ -21,11 +22,15 @@ extra-deps:
 
 nix:
   enable: true
-#  packages: []
+  packages: [ hpx ]
 #  shell-file: hpx-2.2.0.nix
-  shell-file: shell.nix
-#  path:  ["nixpkgs=https://github.com/NixOS/nixpkgs/archive/16.03.tar.gz"]
+#  shell-file: shell.nix
 
+  # Use a specific tag of a specific NixPkgs:
+#  path:  ["nixpkgs=https://github.com/iu-parfunc/nixpkgs/archive/hpx-2.2.0-nixpkgs-16.03.tar.gz"]
+
+  path:  ["nixpkgs=https://github.com/iu-parfunc/nixpkgs/archive/hpx-master.tar.gz"]  
+  
 
 # docker:
 #   enable: true
