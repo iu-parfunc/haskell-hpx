@@ -17,21 +17,17 @@ extra-deps:
 - bindings-hpx-0.1
 - bindings-libffi-0.3
 
-# [2015.09.19] Disabling for now and just running stack *inside* the
-# docker image.  That way is safer currently.
-
 nix:
   enable: true
+  # Manually include git to work around a bug in stack/nix integration.
   packages: [ hpx ]
-#  shell-file: hpx-2.2.0.nix
-#  shell-file: shell.nix
-
   # Use a specific tag of a specific NixPkgs:
-#  path:  ["nixpkgs=https://github.com/iu-parfunc/nixpkgs/archive/hpx-2.2.0-nixpkgs-16.03.tar.gz"]
-
-  path:  ["nixpkgs=https://github.com/iu-parfunc/nixpkgs/archive/hpx-master.tar.gz"]  
+  path:  ["nixpkgs=https://github.com/iu-parfunc/nixpkgs/archive/tag-hpx-2.2.0-nixpkgs-16.03.tar.gz"]
+  # Or use a branch, but that's more likely impure:
+  # path:  ["nixpkgs=https://github.com/iu-parfunc/nixpkgs/archive/hpx-master.tar.gz"]  
   
-
+# [2015.09.19] Disabling for now and just running stack *inside* the
+# docker image.  That way is safer currently.  
 # docker:
 #   enable: true
 # #  repo: "fpco/stack-build"
