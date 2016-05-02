@@ -16,7 +16,7 @@ module Foreign.HPX (
 import           Bindings.HPX
 
 import           Control.Applicative (liftA2)
-import           Control.Monad (unless, void)
+import           Control.Monad (replicateM, unless, void)
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Monad.Reader (asks)
 
@@ -25,6 +25,7 @@ import qualified Data.ByteString.Lazy as BL
 import           Data.ByteString.Unsafe
 import           Data.Foldable (for_)
 import qualified Data.Map as Map
+import           Data.Traversable (for)
 
 import           Foreign hiding (void)
 import           Foreign.C.String
@@ -39,24 +40,33 @@ import           System.Environment (getArgs, getProgName)
 import           System.Exit (exitFailure)
 import           System.IO.Unsafe (unsafePerformIO)
 
-newActionSpec :: Binary a => StaticPtr (a -> HPX ()) -> IO ActionSpec
-newActionSpec sptr = do
-    p_action <- new Invalid
-    pure $ ActionSpec p_action Default sptr
+-- Smart constructor for ActionSpec
+actionSpec :: Binary a => StaticPtr (a -> HPX ()) -> ActionSpec
+actionSpec = ActionSpec Default
 
 withHPX :: [ActionSpec] -> HPX () -> IO ()
 withHPX specs f = do
-  tramp_ptr            <- registerTrampoline
-  let action_env        = actionSpecsToEnv specs
-      main_action       = runHPX action_env f
-  for_ specs $ registerAction action_env
-  main_ptr             <- registerMain main_action
+  action_ptrs <- replicateM (length specs) $ new Invalid
+  tramp_ptr   <- registerTrampoline
+  let action_ptrs_and_specs = zip action_ptrs specs
+      action_env            = actionSpecsToEnv action_ptrs_and_specs
+      main_action           = runHPX action_env f
+  action_fun_ptrs          <- for action_ptrs_and_specs $
+                                  uncurry (registerAction action_env)
+  (main_ptr, main_fun_ptr) <- registerMain main_action
   _ <- init
   runTrampoline tramp_ptr main_ptr
   c'hpx_finalize
+  free tramp_ptr
+  free main_ptr
+  freeHaskellFunPtr main_fun_ptr
+  for_ action_ptrs     free
+  for_ action_fun_ptrs freeHaskellFunPtr
 
-actionSpecsToEnv :: [ActionSpec] -> ActionEnv
-actionSpecsToEnv = Map.fromList . map (\(ActionSpec p _ sptr) -> (staticKey sptr, p))
+actionSpecsToEnv :: [(Ptr Action, ActionSpec)] -> ActionEnv
+actionSpecsToEnv = ActionEnv
+                 . Map.fromList
+                 . map (\(p, (ActionSpec _ sptr)) -> (staticKey sptr, p))
 
 {-# INLINEABLE init #-}
 init :: IO [String]
@@ -78,33 +88,34 @@ initWith argv =
 -- Unsafe
 registerTrampoline :: IO (Ptr Action)
 registerTrampoline = do
-    c_keyName <- newCString "haskell_hpx_trampoline:keyName"
     p_action  <- new Invalid
     -- TODO: Figure out what error codes can be produced here
-    _r        <- c'hpx_register_action_1 C'HPX_DEFAULT
-                                         NoAttribute
-                                         c_keyName
-                                         (castPtr p_action)
-                                         2
-                                         (castFunPtr p'haskell_hpx_trampoline)
-                                         c'HPX_ACTION_T
+    void $ withCString "haskell_hpx_trampoline:keyName" $ \c_keyName ->
+        c'hpx_register_action_1 C'HPX_DEFAULT
+                                NoAttribute
+                                c_keyName
+                                (castPtr p_action)
+                                2
+                                (castFunPtr p'haskell_hpx_trampoline)
+                                c'HPX_ACTION_T
     pure p_action
 
-registerMain :: IO () -> IO (Ptr Action)
+-- Unsafe
+registerMain :: IO () -> IO (Ptr Action, FunPtr (Ptr () -> CSize -> IO CInt))
 registerMain mainAction = do
-    c_keyName <- newCString "haskell_hpx_main:keyName"
     p_action  <- new Invalid
     c_clbk    <- mk'hpx_action_handler_t clbk
     -- TODO: Figure out what error codes can be produced here
-    _r        <- c'hpx_register_action_2 C'HPX_DEFAULT
-                                         Marshalled
-                                         c_keyName
-                                         (castPtr p_action)
-                                         3
-                                         (castFunPtr c_clbk)
-                                         c'HPX_POINTER
-                                         c'HPX_SIZE_T
-    pure p_action
+    void $ withCString "haskell_hpx_main:keyName" $ \c_keyName ->
+        c'hpx_register_action_2 C'HPX_DEFAULT
+                                Marshalled
+                                c_keyName
+                                (castPtr p_action)
+                                3
+                                (castFunPtr c_clbk)
+                                c'HPX_POINTER
+                                c'HPX_SIZE_T
+    pure (p_action, c_clbk)
   where
     clbk :: Ptr () -> CSize -> IO CInt
     clbk _ _ = 0 <$ mainAction
@@ -115,19 +126,21 @@ runTrampoline trampPtr mainPtr = void $
     c'_hpx_run_1 (castPtr trampPtr) 1 (castPtr mainPtr)
 
 -- Unsafe
-registerAction :: ActionEnv -> ActionSpec -> IO ()
-registerAction env (ActionSpec p_action actionT sptr) = do
-    c_keyName <- newCString keyName
-    c_clbk    <- mk'hpx_action_handler_t clbk
+registerAction :: ActionEnv -> Ptr Action -> ActionSpec
+               -> IO (FunPtr (Ptr () -> CSize -> IO CInt))
+registerAction env pAction (ActionSpec actionT sptr) = do
+    c_clbk <- mk'hpx_action_handler_t clbk
     -- TODO: Figure out what error codes can be produced here
-    void $ c'hpx_register_action_2 (toC actionT)
-                                   Marshalled
-                                   c_keyName
-                                   (castPtr p_action)
-                                   3
-                                   (castFunPtr c_clbk)
-                                   c'HPX_POINTER
-                                   c'HPX_SIZE_T
+    void $ withCString keyName $ \c_keyName ->
+        c'hpx_register_action_2 (toC actionT)
+                                Marshalled
+                                c_keyName
+                                (castPtr pAction)
+                                3
+                                (castFunPtr c_clbk)
+                                c'HPX_POINTER
+                                c'HPX_SIZE_T
+    pure c_clbk
   where
     -- This is an internal name that is distinct for every static pointer,
     -- so we use that as a unique ID
@@ -163,19 +176,9 @@ here :: Address
 here = unsafePerformIO (Address <$> peek p'HPX_HERE)
 {-# NOINLINE here #-}
 
--- run :: Binary a => StaticPtr (a -> IO ()) -> a -> HPX Int
--- run sptr arg = do
---   p_action <- lookupAction sptr
---   let bsEncArg = BL.toStrict $ encode arg
---   r <- unsafeUseAsCStringLen bsEncArg $ \(c_arg, c_argLen) ->
---     with c_arg                   $ \p_c_arg    ->
---     with (fromIntegral c_argLen) $ \p_c_argLen ->
---       c'_hpx_run_2 (castPtr p_action) 2 p_c_arg p_c_argLen
---   return $ fromIntegral r
-
 lookupAction :: StaticPtr (a -> HPX ()) -> HPX (Ptr Action)
 lookupAction sp = do
-  mbAction <- asks $ Map.lookup (staticKey sp)
+  mbAction <- asks $ Map.lookup (staticKey sp) . unActionEnv
   maybe (error "Lookup of unregistered action") pure mbAction
 
 foreign import ccall "&haskell_hpx_trampoline" p'haskell_hpx_trampoline

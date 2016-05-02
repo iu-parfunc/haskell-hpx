@@ -15,7 +15,6 @@ printThatStringSP = static printThatString
 
 main :: IO ()
 main = do
-    spec <- newActionSpec printThatStringSP
-    withHPX [spec] $ do
-        _r <- callCC here "Hello, World!" printThatStringSP
-        liftIO $ putStrLn "The show's over (or has it just begun?)"
+    withHPX [actionSpec printThatStringSP] $
+        callCC here "Hello, World!" printThatStringSP
+    putStrLn "The show's over"

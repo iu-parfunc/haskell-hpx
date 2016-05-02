@@ -34,7 +34,7 @@ class C c h where
     fromC :: c -> h
     toC   :: h -> c
 
-newtype HPX a = HPX (ReaderT ActionEnv IO a)
+newtype HPX a = HPX { unHPX :: ReaderT ActionEnv IO a }
   deriving ( Alternative
            , Applicative
            , Functor
@@ -51,9 +51,14 @@ newtype HPX a = HPX (ReaderT ActionEnv IO a)
 runHPX :: ActionEnv -> HPX a -> IO a
 runHPX env (HPX hpx) = runReaderT hpx env
 
-type ActionEnv = Map StaticKey (Ptr Action)
+newtype ActionEnv = ActionEnv { unActionEnv :: Map StaticKey (Ptr Action) }
+  deriving ( Eq
+           , Generic
+           , Ord
+           , Show
+           )
 
-newtype Action = Action C'hpx_action_t
+newtype Action = Action { unAction :: C'hpx_action_t }
   deriving ( Bits
            , Bounded
            , Data
@@ -73,16 +78,19 @@ newtype Action = Action C'hpx_action_t
            )
 
 data ActionSpec where
-    ActionSpec :: Binary a => Ptr Action -> ActionType -> StaticPtr (a -> HPX ()) -> ActionSpec
+    ActionSpec :: Binary a
+               => ActionType
+               -> StaticPtr (a -> HPX ())
+               -> ActionSpec
 
 instance Eq ActionSpec where
-    ActionSpec _ _ sp1 == ActionSpec _ _ sp2 = staticKey sp1 == staticKey sp2
+    ActionSpec _ sp1 == ActionSpec _ sp2 = staticKey sp1 == staticKey sp2
 
 instance Ord ActionSpec where
-    compare (ActionSpec _ _ sp1) (ActionSpec _ _ sp2) = compare (staticKey sp1) (staticKey sp2)
+    compare (ActionSpec _ sp1) (ActionSpec _ sp2) = compare (staticKey sp1) (staticKey sp2)
 
 instance Show ActionSpec where
-    showsPrec p (ActionSpec _ _ sp) = showParen (p > appPrec) $
+    showsPrec p (ActionSpec _ sp) = showParen (p > appPrec) $
         showString "ActionSpec " . showsPrec appPrec1 (staticPtrInfo sp)
 
 data ActionType
@@ -147,7 +155,7 @@ pattern Invalid :: Action
 pattern Invalid <- ((== Action c'HPX_ACTION_INVALID) -> True) where
     Invalid = Action c'HPX_ACTION_INVALID
 
-newtype Address = Address C'hpx_addr_t
+newtype Address = Address { unAddress :: C'hpx_addr_t }
   deriving ( Bits
            , Bounded
            , Data
@@ -166,7 +174,7 @@ newtype Address = Address C'hpx_addr_t
            , Storable
            )
 
-newtype Status = Status C'hpx_status_t
+newtype Status = Status { unStatus :: C'hpx_status_t }
   deriving ( Bits
            , Bounded
            , Data
