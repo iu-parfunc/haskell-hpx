@@ -3,11 +3,11 @@ resolver: lts-5.13
 packages:
 - '.'
 - location:
-    git: git@github.com:RyanGlScott/bindings-dsl
+    git: https://github.com/RyanGlScott/bindings-dsl.git
     commit: e918a9eea5b153c78f4a95c30262fdf917603d2c
   extra-dep: true
 - location:
-    git: git@github.com:iu-parfunc/bindings-hpx
+    git: https://github.com/iu-parfunc/bindings-hpx.git
     commit: 8a40caee411867101c90802fe4bd1166043a8712
   extra-dep: true
 
@@ -18,6 +18,14 @@ extra-deps:
 
 # [2015.09.19] Disabling for now and just running stack *inside* the
 # docker image.  That way is safer currently.
+
+nix:
+  enable: true
+#  packages: []
+#  shell-file: hpx-2.2.0.nix
+  shell-file: shell.nix
+#  path:  ["nixpkgs=https://github.com/NixOS/nixpkgs/archive/16.03.tar.gz"]
+
 
 # docker:
 #   enable: true
