@@ -5,10 +5,11 @@ stdenv.mkDerivation {
 
   name = "myEnv";
 
-#  hpx = import ./hpx-2.2.0.nix;
   buildInputs = [
-    git openssh pkgconfig
+    git
     hpxEnv
+    openssh
+    pkgconfig
     haskell.packages.lts-5_9.ghc
   ];
 
