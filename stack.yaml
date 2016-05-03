@@ -21,7 +21,7 @@ nix:
   enable: true
   # Manually include git to work around a bug in stack/nix integration.
   # Missing a comma here makes for a terrible error message [2016.05.02]:
-  packages: [ hpx, git, pkgconfig, hwloc ]
+  packages: [ hpx, git, pkgconfig, hwloc, libcxx ]
   # Use a specific tag of a specific NixPkgs:
   path:  ["nixpkgs=https://github.com/iu-parfunc/nixpkgs/archive/tag-hpx-2.2.0-nixpkgs-16.03.tar.gz"]
   # Or use a branch, but that's more likely impure:
