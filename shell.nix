@@ -5,7 +5,7 @@ stdenv.mkDerivation {
   name = "myEnv";
 
   buildInputs = [
-    git
+    git hwloc
     hpx
     stack
     openssh
