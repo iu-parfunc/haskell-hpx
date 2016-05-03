@@ -1,5 +1,5 @@
 {-# LANGUAGE StaticPointers #-}
-module Main (main) where
+module HelloWorld (actions, main) where
 
 import Control.Monad.IO.Class (MonadIO(..))
 import Foreign.HPX
@@ -13,8 +13,8 @@ printThatString str = do
 printThatStringSP :: StaticPtr (String -> HPX ())
 printThatStringSP = static printThatString
 
-main :: IO ()
-main = do
-    withHPX [actionSpec printThatStringSP] $
-        callCC here "Hello, World!" printThatStringSP
-    putStrLn "The show's over"
+actions :: [ActionSpec]
+actions = [actionSpec printThatStringSP]
+
+main :: HPX ()
+main = callCC here "Hello, World!" printThatStringSP
