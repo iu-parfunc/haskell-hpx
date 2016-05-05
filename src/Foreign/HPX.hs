@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes #-}
+
 {-|
 Module:      Foreign.HPX
 Copyright:   (C) 2014-2015 Ryan Newton
@@ -16,15 +18,17 @@ module Foreign.HPX (
 import           Bindings.HPX
 
 import           Control.Applicative (liftA2)
-import           Control.Monad (replicateM, unless, void)
+import           Control.Exception (assert)
+import           Control.Monad (mapAndUnzipM, replicateM, unless, void)
 import           Control.Monad.IO.Class (MonadIO(..))
-import           Control.Monad.Reader (asks)
 
 import           Data.Binary (Binary(..), decode, encode)
+import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BL
 import           Data.ByteString.Unsafe
 import           Data.Foldable (for_)
 import qualified Data.Map as Map
+import           Data.Monoid ((<>))
 import           Data.Traversable (for)
 
 import           Foreign hiding (void)
@@ -38,28 +42,30 @@ import           Prelude hiding (init)
 
 import           System.Environment (getArgs, getProgName)
 import           System.Exit (exitFailure)
-import           System.IO.Unsafe (unsafePerformIO)
 
 -- Smart constructor for ActionSpec
-actionSpec :: Binary a => StaticPtr (a -> HPX ()) -> ActionSpec
+actionSpec :: Binary a => StaticPtr (a -> HPX r) -> ActionSpec
 actionSpec = ActionSpec Default
 
 withHPX :: [ActionSpec] -> HPX () -> IO ()
-withHPX specs f = do
+withHPX specs = withHPXs specs . (:[])
+
+withHPXs :: [ActionSpec] -> [HPX ()] -> IO ()
+withHPXs specs fs = do
   action_ptrs <- replicateM (length specs) $ new Invalid
   tramp_ptr   <- registerTrampoline
   let action_ptrs_and_specs = zip action_ptrs specs
       action_env            = actionSpecsToEnv action_ptrs_and_specs
-      main_action           = runHPX action_env f
-  action_fun_ptrs          <- for action_ptrs_and_specs $
-                                  uncurry (registerAction action_env)
-  (main_ptr, main_fun_ptr) <- registerMain main_action
+      main_actions          = map (runHPX action_env) fs
+  action_fun_ptrs            <- for action_ptrs_and_specs $
+                                    uncurry (registerAction action_env)
+  (main_ptrs, main_fun_ptrs) <- mapAndUnzipM registerMain main_actions
   _ <- init
-  runTrampoline tramp_ptr main_ptr
+  for_ main_ptrs $ runTrampoline tramp_ptr
   c'hpx_finalize
   free tramp_ptr
-  free main_ptr
-  freeHaskellFunPtr main_fun_ptr
+  for_ main_ptrs       free
+  for_ main_fun_ptrs   freeHaskellFunPtr
   for_ action_ptrs     free
   for_ action_fun_ptrs freeHaskellFunPtr
 
@@ -152,34 +158,124 @@ registerAction env pAction (ActionSpec actionT sptr) = do
                                  } -> pk ++ mn ++ inf
 
     clbk :: Ptr () -> CSize -> IO CInt
-    clbk cstr len = do
-        bs <- unsafePackCStringLen (castPtr cstr, fromIntegral len)
-        runHPX env . deRefStaticPtr sptr . decode . BL.fromStrict $ bs
+    clbk cstr _ = do
+        arg <- decodeValue cstr
+        _   <- runHPX env $ deRefStaticPtr sptr arg
         pure 0
+
+-- See Note [Encoding values]
+withEncodedValue :: Binary a => a -> (CString -> CSize -> IO b) -> IO b
+withEncodedValue val f =
+    let bsEncVal    = BL.toStrict $ encode val
+        bsEncLen    = BL.toStrict $ encode $ BS.length bsEncVal
+        bsEncLenVal = bsEncLen <> bsEncVal
+    in unsafeUseAsCStringLen bsEncLenVal $ \(c_arg, c_argLen) ->
+        f c_arg (fromIntegral c_argLen)
+
+-- See Note [Encoding values]
+decodeValue :: Binary r => Ptr () -> IO r
+decodeValue buffer = do
+    lenBS <- unsafePackCStringLen (castPtr buffer, intSize)
+    let len    = decode $ BL.fromStrict lenBS
+        valLen = intSize + len
+    valBS <- unsafePackCStringLen (castPtr buffer, valLen)
+    let (len2, valPayload) = decode $ BL.fromStrict valBS
+    assert (len == len2) $ pure valPayload
+
+intSize :: Int
+intSize = sizeOf (undefined :: Int)
+
+bufferSize :: Int32
+bufferSize = maxBound
+
+call :: Binary a
+     => Address -> a -> StaticPtr (a -> HPX (Promise r)) -> HPX (LCO r)
+call (Address addr) arg sptr = do
+    p_action <- lookupAction sptr
+    liftIO $ do
+        Action action <- peek p_action
+        lco@(LCO result) <- newLCOFuture
+        -- TODO: Exit codes
+        _ <- withEncodedValue arg $ c'_hpx_call addr action result 2
+        pure lco
 
 callCC :: Binary a => Address -> a -> StaticPtr (a -> HPX ()) -> HPX ()
 callCC (Address addr) arg sptr = do
-    p_action      <- lookupAction sptr
+    p_action <- lookupAction sptr
     liftIO $ do
         Action action <- peek p_action
-        let bsEncArg = BL.toStrict $ encode arg
-        void . unsafeUseAsCStringLen bsEncArg $ \(c_arg, c_argLen) ->
-            c'_hpx_call_cc addr action 2 c_arg (fromIntegral c_argLen)
+        -- TODO: Exit codes
+        void . withEncodedValue arg $ c'_hpx_call_cc addr action 2
 
-threadContinue :: Binary r => r -> HPX ()
+callSync :: (Binary a, Binary r)
+         => Address -> a -> StaticPtr (a -> HPX (Promise r)) -> HPX r
+callSync (Address addr) arg sptr = do
+    p_action <- lookupAction sptr
+    liftIO $ allocaBytes (fromIntegral bufferSize) $ \p_buffer ->
+             withEncodedValue arg $ \c_arg c_argLen -> do
+                Action action <- peek p_action
+                _  <- c'_hpx_call_sync addr action
+                                       (castPtr p_buffer) (fromIntegral bufferSize)
+                                       2 c_arg c_argLen
+                decodeValue p_buffer
+
+-- Unsafe
+newLCOFuture :: IO (LCO r)
+newLCOFuture = fmap LCO . c'hpx_lco_future_new $ fromIntegral bufferSize
+
+-- Unsafe
+deleteLCO :: LCO r -> HPX ()
+deleteLCO (LCO lco) = liftIO $
+    c'hpx_lco_delete lco c'HPX_NULL
+
+getLCO :: Binary r => LCO r -> HPX r
+getLCO (LCO lco) = liftIO $ allocaBytes (fromIntegral bufferSize) $ \ p_buffer -> do
+    -- TODO: Error codes
+    _  <- c'hpx_lco_get lco (fromIntegral bufferSize) (castPtr p_buffer)
+    decodeValue p_buffer
+
+threadContinue :: Binary r => r -> HPX (Promise r)
+-- TODO: Exit codes
 threadContinue res = liftIO $ do
-    let bsEncRes = BL.toStrict $ encode res
-    void . unsafeUseAsCStringLen bsEncRes $ \(c_res, c_resLen) ->
-        c'_hpx_thread_continue 2 c_res (fromIntegral c_resLen)
+    _ <- withEncodedValue res $ c'_hpx_thread_continue 2
+    pure Promise
 
-here :: Address
-here = unsafePerformIO (Address <$> peek p'HPX_HERE)
-{-# NOINLINE here #-}
+getMyRank :: HPX Int
+getMyRank = liftIO $ fmap fromIntegral c'hpx_get_my_rank
 
-lookupAction :: StaticPtr (a -> HPX ()) -> HPX (Ptr Action)
+getMyThreadID :: HPX Int
+getMyThreadID = liftIO $ fmap fromIntegral c'hpx_get_my_thread_id
+
+getNumRanks :: HPX Int
+getNumRanks = liftIO $ fmap fromIntegral c'hpx_get_num_ranks
+
+getNumThreads :: HPX Int
+getNumThreads = liftIO $ fmap fromIntegral c'hpx_get_num_threads
+
+isActive :: HPX Bool
+isActive = liftIO $ fmap (toEnum . fromIntegral) c'hpx_is_active
+
+timeElapsedMS :: Time -> HPX Double
+timeElapsedMS t = liftIO $ with t $ \p_t -> do
+    e <- c'wr_hpx_time_elapsed_ms (castPtr p_t)
+    pure $ realToFrac e
+
+timeNow :: HPX Time
+timeNow = liftIO $ alloca $ \p_time -> do
+    c'wr_hpx_time_now (castPtr p_time)
+    peek p_time
+
+lookupAction :: StaticPtr (a -> HPX r) -> HPX (Ptr Action)
 lookupAction sp = do
-  mbAction <- asks $ Map.lookup (staticKey sp) . unActionEnv
+  mbAction <- asksHPX $ Map.lookup (staticKey sp) . unActionEnv
   maybe (error "Lookup of unregistered action") pure mbAction
 
 foreign import ccall "&haskell_hpx_trampoline" p'haskell_hpx_trampoline
   :: FunPtr (C'hpx_action_t -> IO CInt)
+
+{-
+Note [Encoding values]
+~~~~~~~~~~~~~~~~~~~~~~
+
+TODO: How we do it
+-}

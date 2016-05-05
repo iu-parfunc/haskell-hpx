@@ -1,61 +1,56 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StaticPointers #-}
-module Fibonacci (fibonacci) where
+module Fibonacci (actions, main) where
 
-import Control.Monad
-
+import Control.Monad.IO.Class (MonadIO(..))
 import Foreign.HPX
-import Foreign.Storable
-
 import GHC.StaticPtr
-
+import System.IO (hFlush, stdout)
 import Text.Printf
 
-fibAction :: Int -> IO Int
-fibAction n
-  | n < 2     = threadContinue n
-  | otherwise = do
-      lcos@[lco1, lco2] :: [LCO Int] <- replicateM 2
-                                      . newLCOFuture
-                                      . fromIntegral
-                                      . sizeOf
-                                      $ (undefined :: Int)
+fibOf :: Int
+fibOf = 5
 
-      call here fibActionSP lco1 (n - 1)
-      call here fibActionSP lco2 (n - 2)
-      [fns1, fns2] <- map fst <$> getAllLCO lcos
-      deleteLCO lco1 nullLCO
-      deleteLCO lco2 nullLCO
+fibAction :: Int -> HPX (Promise Int)
+fibAction = threadContinue . (+1)
+-- fibAction n
+--   | n < 2     = threadContinue n
+--   | otherwise = do
+--         liftIO $ putStrLn "wat"
+--         fut1 <- call Here (n - 1) fibActionSP
+--         fut2 <- call Here (n - 2) fibActionSP
+--         fn1 <- getLCO fut1
+--         fn2 <- getLCO fut2
+--         liftIO $ do
+--             putStrLn "-------"
+--             print n
+--             print fn1
+--             print fn2
+--             putStrLn "-------"
+--         deleteLCO fut1
+--         deleteLCO fut2
+--         threadContinue (fn1 + fn2)
 
-      let fn = fns1 + fns2
-      threadContinue fn
-
-fibActionSP :: StaticPtr (Int -> IO Int)
+fibActionSP :: StaticPtr (Int -> HPX (Promise Int))
 fibActionSP = static fibAction
 
-fibMainAction :: Int -> IO ()
-fibMainAction n = do
+actions :: [ActionSpec]
+actions = [actionSpec fibActionSP]
 
-  printf "fib(%d)=\n" n
+main :: HPX ()
+main = do
+    liftIO $ do
+        printf "fib(%d) = " fibOf
+        hFlush stdout
+--     before <- timeNow
 
-  now     <- timeNow
-  fn      <- callSync here fibActionSP n
-  elapsed <- (/ 1e3) <$> timeElapsedMS now
-  l       <- localities
-  t       <- threads
+    fn <- callSync Here fibOf fibActionSP
 
-  printf "%d\n"                   fn
-  printf "seconds: %.7f\n"        elapsed
-  printf "localities: %d\n"       l
-  printf "threads/locality: %d\n" t
-
-  exit 0
-
-fibMainActionSP :: StaticPtr (Int -> IO ())
-fibMainActionSP = static fibMainAction
-
-fibonacci :: IO ()
-fibonacci = do
-  registerAction Default Marshalled fibActionSP
-  registerAction Default Marshalled fibMainActionSP
-  void $ run fibMainActionSP 1
+--     elapsedMS <- timeElapsedMS before
+--     let elapsed = elapsedMS / 1e3
+--     localities <- getNumRanks
+--     threads    <- getNumThreads
+    liftIO $ do
+          printf "%d\n"                   fn
+--           printf "seconds: %.7f\n"        elapsed
+--           printf "localities: %d\n"       localities
+--           printf "threads/locality: %d\n" threads

@@ -9,7 +9,7 @@ packages:
   extra-dep: true
 - location:
     git: https://github.com/iu-parfunc/bindings-hpx.git
-    commit: 8a40caee411867101c90802fe4bd1166043a8712
+    commit: e6cde55e816248d2578644c15c0d8a1661e2b496
   extra-dep: true
 
 extra-deps:
@@ -25,10 +25,10 @@ nix:
   # Use a specific tag of a specific NixPkgs:
   path:  ["nixpkgs=https://github.com/iu-parfunc/nixpkgs/archive/tag-hpx-2.2.0-nixpkgs-16.03.tar.gz"]
   # Or use a branch, but that's more likely impure:
-  # path:  ["nixpkgs=https://github.com/iu-parfunc/nixpkgs/archive/hpx-master.tar.gz"]  
-  
+  # path:  ["nixpkgs=https://github.com/iu-parfunc/nixpkgs/archive/hpx-master.tar.gz"]
+
 # [2015.09.19] Disabling for now and just running stack *inside* the
-# docker image.  That way is safer currently.  
+# docker image.  That way is safer currently.
 # docker:
 #   enable: true
 # #  repo: "fpco/stack-build"

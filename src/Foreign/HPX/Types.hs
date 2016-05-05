@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -14,19 +12,19 @@ import Control.Applicative (Alternative)
 import Control.Monad (MonadPlus)
 import Control.Monad.Fix (MonadFix)
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Reader (MonadReader)
-import Control.Monad.Trans.Reader (ReaderT(..))
+import Control.Monad.Reader (ReaderT(..), ask, asks)
 
 import Data.Binary (Binary)
-import Data.Data (Data)
 import Data.Ix (Ix)
 import Data.Map (Map)
+import Data.Proxy (Proxy(..))
 
 import Foreign
 
-import GHC.Generics (Generic, Generic1)
 import GHC.Show (appPrec, appPrec1)
 import GHC.StaticPtr (StaticKey, StaticPtr, staticKey, staticPtrInfo)
+
+import System.IO.Unsafe (unsafePerformIO)
 
 import Text.Printf (PrintfArg)
 
@@ -38,14 +36,17 @@ newtype HPX a = HPX { unHPX :: ReaderT ActionEnv IO a }
   deriving ( Alternative
            , Applicative
            , Functor
-           , Generic
-           , Generic1
            , Monad
            , MonadFix
            , MonadIO
            , MonadPlus
-           , MonadReader ActionEnv
            )
+
+askHPX :: HPX ActionEnv
+askHPX = HPX ask
+
+asksHPX :: (ActionEnv -> a) -> HPX a
+asksHPX = HPX . asks
 
 -- Unsafe
 runHPX :: ActionEnv -> HPX a -> IO a
@@ -53,7 +54,6 @@ runHPX env (HPX hpx) = runReaderT hpx env
 
 newtype ActionEnv = ActionEnv { unActionEnv :: Map StaticKey (Ptr Action) }
   deriving ( Eq
-           , Generic
            , Ord
            , Show
            )
@@ -61,11 +61,9 @@ newtype ActionEnv = ActionEnv { unActionEnv :: Map StaticKey (Ptr Action) }
 newtype Action = Action { unAction :: C'hpx_action_t }
   deriving ( Bits
            , Bounded
-           , Data
            , Enum
            , Eq
            , FiniteBits
-           , Generic
            , Integral
            , Ix
            , Num
@@ -80,7 +78,7 @@ newtype Action = Action { unAction :: C'hpx_action_t }
 data ActionSpec where
     ActionSpec :: Binary a
                => ActionType
-               -> StaticPtr (a -> HPX ())
+               -> StaticPtr (a -> HPX r)
                -> ActionSpec
 
 instance Eq ActionSpec where
@@ -100,10 +98,8 @@ data ActionType
     | Function
     | OpenCL
   deriving ( Bounded
-           , Data
            , Enum
            , Eq
-           , Generic
            , Ix
            , Ord
            , Read
@@ -147,9 +143,9 @@ pattern Coalesced = C'HPX_COALESCED
 pattern Compressed :: ActionAttribute
 pattern Compressed = C'HPX_COMPRESSED
 
-pattern Null :: Action
-pattern Null <- ((== Action c'HPX_ACTION_NULL) -> True) where
-    Null = Action c'HPX_ACTION_NULL
+pattern NullAction :: Action
+pattern NullAction <- ((== Action c'HPX_ACTION_NULL) -> True) where
+    NullAction = Action c'HPX_ACTION_NULL
 
 pattern Invalid :: Action
 pattern Invalid <- ((== Action c'HPX_ACTION_INVALID) -> True) where
@@ -158,11 +154,9 @@ pattern Invalid <- ((== Action c'HPX_ACTION_INVALID) -> True) where
 newtype Address = Address { unAddress :: C'hpx_addr_t }
   deriving ( Bits
            , Bounded
-           , Data
            , Enum
            , Eq
            , FiniteBits
-           , Generic
            , Integral
            , Ix
            , Num
@@ -174,14 +168,41 @@ newtype Address = Address { unAddress :: C'hpx_addr_t }
            , Storable
            )
 
-newtype Status = Status { unStatus :: C'hpx_status_t }
+here :: Address
+here = unsafePerformIO (Address <$> peek p'HPX_HERE)
+{-# NOINLINE here #-}
+
+pattern Here :: Address
+pattern Here <- ((== here) -> True) where
+    Here = here
+
+newtype LCO r = LCO { unLCO :: C'hpx_addr_t }
   deriving ( Bits
            , Bounded
-           , Data
            , Enum
            , Eq
            , FiniteBits
-           , Generic
+           , Integral
+           , Ix
+           , Num
+           , Ord
+           , PrintfArg
+           , Read
+           , Real
+           , Show
+           , Storable
+           )
+
+pattern NullLCO :: LCO r
+pattern NullLCO <- ((== LCO c'HPX_NULL) -> True) where
+    NullLCO = LCO c'HPX_NULL
+
+newtype Status = Status { unStatus :: C'hpx_status_t }
+  deriving ( Bits
+           , Bounded
+           , Enum
+           , Eq
+           , FiniteBits
            , Integral
            , Ix
            , Num
@@ -228,3 +249,17 @@ pattern ENoMem <- ((== Status c'HPX_ENOMEM) -> True) where
 pattern User :: Status
 pattern User <- ((== Status c'HPX_USER) -> True) where
     User = Status c'HPX_USER
+
+newtype Time = Time { unTime :: C'hpx_time_t }
+  deriving ( Eq
+           , Num
+           , Ord
+           , Read
+           , Show
+           , Storable
+           )
+
+type Promise = Proxy
+
+pattern Promise :: Promise a
+pattern Promise = Proxy

@@ -6,9 +6,7 @@ import Foreign.HPX
 import GHC.StaticPtr (StaticPtr)
 
 printThatString :: String -> HPX ()
-printThatString str = do
-    liftIO (putStrLn str)
-    threadContinue "World, Hello!"
+printThatString = liftIO . putStrLn
 
 printThatStringSP :: StaticPtr (String -> HPX ())
 printThatStringSP = static printThatString
@@ -17,4 +15,4 @@ actions :: [ActionSpec]
 actions = [actionSpec printThatStringSP]
 
 main :: HPX ()
-main = callCC here "Hello, World!" printThatStringSP
+main = callCC Here "Hello, World!" printThatStringSP
