@@ -11,7 +11,7 @@ fi
 
 set -xe
 
-HPX_VER=2.2.0
+HPX_VER=3.0.0
 HPX_DIR=hpx-${HPX_VER}
 HPX_TGZ=${HPX_DIR}.tar.gz
 
@@ -20,7 +20,7 @@ tar xf ${HPX_TGZ}
 rm ${HPX_TGZ}
 
 cd ${HPX_DIR}/hpx
-./configure --prefix=$PREFIX --enable-shared CFLAGS="-O0 -g" --enable-debug
+./configure --prefix=$PREFIX --enable-shared --enable-debug
 make -j
 make install
 cd ../../
